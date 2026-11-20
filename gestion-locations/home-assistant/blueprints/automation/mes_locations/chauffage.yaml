@@ -2,12 +2,21 @@ blueprint:
   name: Mes Locations — chauffage selon les réservations
   description: >
     Règle le chauffage d'un logement d'après le capteur « Location … chauffage » de l'application Mes Locations.
-    Créer une automatisation par logement (ex. carte « Plancher chauffant », carte « Radiateur », Soustons).
+    Créer une automatisation par logement.
 
-    - La consigne n'est envoyée **que lorsqu'elle change** (préchauffage, arrivée, départ…) :
-      les voyageurs peuvent régler la température pendant leur séjour sans être écrasés.
+    **Deux façons de faire :**
 
-    - Si l'application ne répond pas (coupure internet), rien n'est modifié.
+    - **Avec une programmation existante** (plages confort / éco déjà réglées dans Home Assistant) : renseigner
+      les deux « input_number » confort et éco. Pendant un séjour, l'application y met ses températures confort / éco
+      et votre planning s'applique normalement. Quand le logement est vide, confort et éco reçoivent la même valeur
+      (préchauffage, éco ou inoccupé) : quelle que soit la plage, c'est cette température qui s'applique ;
+      une dérogation manuelle encore active est annulée, et la valeur est envoyée tout de suite au thermostat.
+
+    - **Sans programmation** : seulement le(s) thermostat(s). La consigne est envoyée **uniquement quand elle change**,
+      les voyageurs peuvent régler la température pendant leur séjour.
+
+    Si l'application ne répond pas (coupure internet), rien n'est modifié. Mode « arrêt » (été) : rien n'est touché
+    si une programmation existe, sinon les thermostats sont éteints.
   domain: automation
   input:
     capteur:
@@ -18,19 +27,38 @@ blueprint:
           domain: sensor
     thermostats:
       name: Thermostat(s)
-      description: >
-        Entités climate du logement : zone plancher chauffant ou zone radiateurs de la pompe à chaleur,
-        boîtiers des radiateurs électriques… (celles de la carte du tableau de bord)
       default: []
       selector:
         entity:
           domain: climate
           multiple: true
+    programme_confort:
+      name: Programmation — température confort (facultatif)
+      description: input_number de la température confort de votre planning (ex. input_number.plancher_confort)
+      default: []
+      selector:
+        entity:
+          domain: input_number
+          multiple: true
+    programme_eco:
+      name: Programmation — température éco (facultatif)
+      description: input_number de la température éco de votre planning (ex. input_number.plancher_eco)
+      default: []
+      selector:
+        entity:
+          domain: input_number
+          multiple: true
+    derogation:
+      name: Dérogation manuelle à annuler quand le logement se vide (facultatif)
+      description: ex. input_boolean.plancher_manuel
+      default: []
+      selector:
+        entity:
+          domain: input_boolean
+          multiple: true
     forcer_mode_chauffage:
-      name: Forcer le mode « chauffage »
-      description: >
-        Passe le thermostat en mode chauffage (heat) avant d'envoyer la consigne. À désactiver si vos
-        thermostats n'ont pas ce mode ou fonctionnent en « auto ».
+      name: Forcer le mode « chauffage » (sans programmation)
+      description: Passe le thermostat en mode chauffage (heat) avant d'envoyer la consigne.
       default: true
       selector:
         boolean: {}
@@ -71,12 +99,18 @@ trigger:
   - platform: state
     entity_id: !input capteur
     attribute: consigne
+  - platform: state
+    entity_id: !input capteur
+    attribute: occupe
   - platform: homeassistant
     event: start
 
 variables:
   capteur: !input capteur
   thermostats: !input thermostats
+  p_confort: !input programme_confort
+  p_eco: !input programme_eco
+  derogation: !input derogation
   forcer: !input forcer_mode_chauffage
   fil_pilote: !input fil_pilote
   options_fp:
@@ -87,42 +121,92 @@ variables:
     arret: !input option_arret
   mode_chauffage: "{{ states(capteur) }}"
   consigne: "{{ state_attr(capteur, 'consigne') }}"
+  occupe: "{{ state_attr(capteur, 'occupe') in [true, 'true', 'True'] }}"
+  avec_programme: "{{ (p_confort | count) > 0 or (p_eco | count) > 0 }}"
+  t_confort: "{{ (state_attr(capteur, 'temp_confort') | float(0)) if occupe else (consigne | float(0)) }}"
+  t_eco: "{{ (state_attr(capteur, 'temp_eco') | float(0)) if occupe else (consigne | float(0)) }}"
 
 condition:
   - condition: template
     value_template: "{{ mode_chauffage not in ['unknown', 'unavailable', 'none', ''] }}"
 
 action:
-  - if:
-      - condition: template
-        value_template: "{{ thermostats | count > 0 }}"
-    then:
-      - choose:
-          - conditions:
-              - condition: template
-                value_template: "{{ mode_chauffage == 'arret' or consigne in [none, 'None', ''] }}"
-            sequence:
-              - service: climate.turn_off
-                target:
-                  entity_id: "{{ thermostats }}"
-                continue_on_error: true
-        default:
+  - choose:
+      # ── Avec la programmation existante ──
+      - conditions:
+          - condition: template
+            value_template: "{{ avec_programme and mode_chauffage != 'arret' and t_confort > 0 and t_eco > 0 }}"
+        sequence:
           - if:
               - condition: template
-                value_template: "{{ forcer }}"
+                value_template: "{{ p_confort | count > 0 }}"
             then:
-              - service: climate.set_hvac_mode
+              - service: input_number.set_value
+                target:
+                  entity_id: "{{ p_confort }}"
+                data:
+                  value: "{{ t_confort }}"
+          - if:
+              - condition: template
+                value_template: "{{ p_eco | count > 0 }}"
+            then:
+              - service: input_number.set_value
+                target:
+                  entity_id: "{{ p_eco }}"
+                data:
+                  value: "{{ t_eco }}"
+          - if:
+              - condition: template
+                value_template: "{{ not occupe }}"
+            then:
+              - if:
+                  - condition: template
+                    value_template: "{{ derogation | count > 0 }}"
+                then:
+                  - service: input_boolean.turn_off
+                    target:
+                      entity_id: "{{ derogation }}"
+              - if:
+                  - condition: template
+                    value_template: "{{ thermostats | count > 0 }}"
+                then:
+                  - service: climate.set_temperature
+                    target:
+                      entity_id: "{{ thermostats }}"
+                    data:
+                      temperature: "{{ consigne | float }}"
+                    continue_on_error: true
+      # ── Sans programmation : thermostat directement ──
+      - conditions:
+          - condition: template
+            value_template: "{{ not avec_programme and thermostats | count > 0 }}"
+        sequence:
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ mode_chauffage == 'arret' or consigne in [none, 'None', ''] }}"
+                sequence:
+                  - service: climate.turn_off
+                    target:
+                      entity_id: "{{ thermostats }}"
+                    continue_on_error: true
+            default:
+              - if:
+                  - condition: template
+                    value_template: "{{ forcer }}"
+                then:
+                  - service: climate.set_hvac_mode
+                    target:
+                      entity_id: "{{ thermostats }}"
+                    data:
+                      hvac_mode: heat
+                    continue_on_error: true
+              - service: climate.set_temperature
                 target:
                   entity_id: "{{ thermostats }}"
                 data:
-                  hvac_mode: heat
+                  temperature: "{{ consigne | float }}"
                 continue_on_error: true
-          - service: climate.set_temperature
-            target:
-              entity_id: "{{ thermostats }}"
-            data:
-              temperature: "{{ consigne | float }}"
-            continue_on_error: true
   - if:
       - condition: template
         value_template: "{{ fil_pilote | count > 0 and mode_chauffage in options_fp }}"

@@ -268,14 +268,17 @@ function actMenages_(u, p) {
   var actives = resasActives_(resas);
   var statuts = {};
   lire_('Menages').forEach(function (m) { statuts[m.reservation_id] = m; });
-  var conf = {};
+  var conf = {}, confRes = {};
   conflits_(resas, biens).forEach(function (c) {
+    if (c.type === 'menage') { confRes[c.reservations[0]] = c.message; return; }
     c.biens.forEach(function (b) { conf[b + '|' + c.date] = c.message; });
   });
+  var jourMenage = planningMenage_(actives, biens).jours;
 
   var liste = [];
   actives.forEach(function (r) {
     if (ids.indexOf(r.bien_id) < 0 || r.depart < debut || r.depart > fin) return;
+    // (le jour de ménage proposé peut être après le départ, jusqu'à l'arrivée suivante)
     var suivante = actives.filter(function (x) { return x.bien_id === r.bien_id && x.arrivee >= r.depart && x.id !== r.id; })
       .sort(function (a, b) { return a.arrivee < b.arrivee ? -1 : 1; })[0];
     var b = parId[r.bien_id] || {}, s = statuts[r.id] || {};
@@ -285,7 +288,8 @@ function actMenages_(u, p) {
       suivante: suivante ? { arrivee: suivante.arrivee, heure: b.heure_arrivee || '16:00', voyageurs: suivante.voyageurs,
                              nuits: suivante.nuits, notes: suivante.notes, jour_meme: suivante.arrivee === r.depart } : null,
       statut: s.statut || 'à faire', fait_le: s.fait_le || '', fait_par: s.fait_par || '', note: s.note || '',
-      conflit: conf[r.bien_id + '|' + r.depart] || (suivante && conf[r.bien_id + '|' + suivante.arrivee]) || ''
+      jour_menage: jourMenage[r.id] || r.depart,
+      conflit: confRes[r.id] || conf[r.bien_id + '|' + r.depart] || (suivante && conf[r.bien_id + '|' + suivante.arrivee]) || ''
     });
   });
   liste.sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });

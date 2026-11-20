@@ -16,10 +16,17 @@ les justificatifs sont rangés dans **Google Drive**, les alertes partent par **
 | ⚙️ Réglages | Biens, liens Airbnb, règles de partage, accès des personnes, emails, **chauffage & eau chaude (Home Assistant)** |
 
 ### Alertes de ménage
-Laetitia ne peut préparer **qu'un seul logement par jour** (en plus de son travail). Les biens qui ont le même
-**groupe de ménage** (`TILH` pour le refuge et le chalet) sont donc surveillés ensemble : il y a conflit dès que
-**les deux logements ont un mouvement le même jour** — deux départs, deux arrivées, ou un départ dans l'un et une arrivée dans l'autre.
-Un départ et une arrivée dans le **même** logement le même jour restent possibles (un seul logement à préparer).
+Laetitia prépare **un seul logement par jour** (en plus de son travail). Pour le refuge et le chalet (groupe de ménage `TILH`),
+l'application vérifie que **chaque ménage peut être fait entre le départ des voyageurs et l'arrivée suivante dans ce logement**,
+à raison d'un logement par jour, et propose le jour de chaque ménage dans l'onglet Ménages.
+
+| Exemple | Résultat |
+|---|---|
+| Mardi : 2 départs ; arrivée mardi au refuge, mercredi au chalet | ✅ refuge mardi, chalet mercredi |
+| Mardi : 2 départs et 2 arrivées | ⚠️ impossible : deux logements à préparer le même jour |
+| Mardi : départ du refuge + arrivée au chalet (libre et prêt depuis plusieurs jours) | ✅ refuge mardi, chalet déjà prêt |
+| Départ et arrivée dans le même logement le même jour | ✅ un seul logement à préparer |
+
 Deux réservations qui se chevauchent dans un même bien sont aussi signalées.
 
 Les alertes s'affichent dans l'application et un **email** part dès qu'un nouveau conflit apparaît après une synchro.
@@ -127,13 +134,22 @@ le ballon chauffe dès qu'**au moins un** d'entre eux en a besoin, et ne s'arrê
    `sensor.location_tilh_eau_chaude`, `sensor.location_soustons_eau_chaude` et les capteurs d'occupation.
 4. Copier les deux fichiers de `home-assistant/blueprints/automation/mes_locations/` dans
    `config/blueprints/automation/mes_locations/`, puis redémarrer Home Assistant.
-5. Paramètres → Automatisations → Modèles :
-   - **« Mes Locations — chauffage »** → une automatisation par logement, avec les entités de la carte correspondante :
-     - Le refuge en bois rustique → le thermostat de la carte **Plancher chauffant** (zone de la pompe à chaleur) ;
-     - Le petit chalet landais rustique → le thermostat de la carte **Radiateur** ;
-     - Soustons → les thermostats des boîtiers du tableau de bord **Soustons**.
-   - **« Mes Locations — eau chaude »** → une automatisation pour Tilh avec l'entité de la carte **Eau chaude sanitaire**
-     (en général un `water_heater` de la pompe à chaleur), et une pour Soustons si son ballon est pilotable.
+5. **Automatisations prêtes à l'emploi** : coller le contenu de `home-assistant/automations_mes_locations.yaml` à la fin
+   de `automations.yaml`, puis recharger les automatisations. Elles reprennent les entités de vos cartes :
+   - **Le refuge** : `climate.plancher_chauffant` + votre programmation (`input_number.plancher_confort` / `plancher_eco`, dérogation `plancher_manuel`) ;
+   - **Le chalet** : `climate.radiateurs_salon` + votre programmation (`radiateurs_confort` / `radiateurs_eco`, dérogation `radiateurs_manuel`) ;
+   - **Soustons** : `climate.thermostat` et `climate.thermostat_chambre`, réglés directement ;
+   - **Eau chaude de Tilh** : votre gestion actuelle est conservée (charge de nuit, solaire, légionelle). L'application appuie sur
+     « Eau chaude maintenant » au début de chaque relance avant une arrivée, coupe la résistance automatique quand plus personne
+     n'est là (et la rallume ensuite), et tient à jour `input_boolean.location_eau_chaude_absence`.
+
+   Fonctionnement avec votre programmation : pendant un séjour, les températures confort / éco de vos plannings prennent les
+   valeurs réglées dans l'application (Réglages → Chauffage & eau chaude) et vos plages horaires s'appliquent normalement.
+   Logement vide : confort = éco = température de préchauffage, d'éco ou d'inoccupation, appliquée tout de suite.
+   L'interrupteur « Programmation active » (commun aux deux circuits) n'est jamais touché.
+
+   Pour aller plus loin sur l'eau chaude : vos automatisations de charge peuvent ajouter la condition
+   « `input_boolean.location_eau_chaude_absence` est éteint » pour ne pas chauffer le ballon quand personne n'est attendu.
 
 Bon à savoir :
 - La consigne de chauffage n'est envoyée **qu'au moment où elle change** : les voyageurs peuvent régler le thermostat pendant leur séjour.

@@ -133,9 +133,10 @@ function resasActives_(resas) {
 }
 
 /**
- * Règle principale (paramètre regle_1_logement_par_jour, activé par défaut) : la personne du ménage ne peut
- * préparer qu'UN logement par jour → conflit dès que deux logements d'un même groupe ont un départ ou une
- * arrivée le même jour. Sinon, règles plus souples :
+ * Règle principale (paramètre regle_1_logement_par_jour, activé par défaut) : la personne du ménage prépare
+ * au plus UN logement par jour ; chaque ménage doit être fait entre le départ des voyageurs et la prochaine
+ * arrivée dans ce logement. Conflit seulement s'il est impossible de tout caser (voir planningMenage_).
+ * Si la règle est désactivée, règles simples :
  *  - 2 départs le même jour  → deux ménages à faire le même jour : impossible
  *  - 2 arrivées le même jour → deux logements à préparer pour le même jour : impossible
  *  - chevauchement dans un même bien (double réservation)
@@ -158,26 +159,10 @@ function conflits_(resas, biens, p) {
   });
 
   var unParJour = p.regle_1_logement_par_jour !== 'non';
+  if (unParJour) out = out.concat(planningMenage_(actives, biens).conflits);
   Object.keys(parJour).forEach(function (k) {
     var e = parJour[k];
-    if (unParJour) {
-      // Une seule personne, un seul logement préparé par jour : conflit dès que deux logements
-      // du groupe ont un départ ou une arrivée le même jour (départ + arrivée dans le MÊME logement = OK).
-      var evts = {}, toutes = e.depart.concat(e.arrivee);
-      e.depart.forEach(function (r) { (evts[r.bien_id] = evts[r.bien_id] || []).push('départ'); });
-      e.arrivee.forEach(function (r) { (evts[r.bien_id] = evts[r.bien_id] || []).push('arrivée'); });
-      var lesBiens = Object.keys(evts);
-      if (lesBiens.length < 2) return;
-      var ids = {};
-      toutes.forEach(function (r) { ids[r.id] = true; });
-      out.push({
-        cle: e.groupe + '|' + e.date + '|journee', date: e.date, groupe: e.groupe, type: 'journee',
-        biens: lesBiens, reservations: Object.keys(ids),
-        message: lesBiens.map(function (b) { return evts[b].join(' + ') + ' à « ' + (nom[b] || b) + ' »'; }).join(', ') +
-                 ' le même jour : un seul logement peut être préparé par jour.'
-      });
-      return;
-    }
+    if (unParJour) return;
     [['depart', p.regle_2_departs !== 'non', 'départs'], ['arrivee', p.regle_2_arrivees !== 'non', 'arrivées']]
       .forEach(function (t) {
         if (!t[1]) return;
@@ -213,6 +198,73 @@ function conflits_(resas, biens, p) {
   });
 
   return out.sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+}
+
+/**
+ * Planning des ménages d'un groupe (une personne, un logement par jour).
+ * Chaque ménage = une fenêtre [jour du départ, jour de la prochaine arrivée dans ce logement].
+ * On remplit les jours un par un en prenant à chaque fois le ménage le plus urgent (échéance la plus proche) :
+ * cette méthode trouve toujours une solution quand il en existe une. Un ménage qui ne peut pas être placé
+ * avant son échéance = conflit.
+ * Renvoie { jours: {reservation_id: 'aaaa-mm-jj'}, conflits: [...] }.
+ */
+function planningMenage_(actives, biens) {
+  var groupe = {}, nom = {};
+  biens.forEach(function (b) { nom[b.id] = b.nom; groupe[b.id] = b.groupe_menage || ('__' + b.id); });
+  var parBien = {};
+  actives.forEach(function (r) { (parBien[r.bien_id] = parBien[r.bien_id] || []).push(r); });
+  var taches = {};
+  Object.keys(parBien).forEach(function (bid) {
+    var l = parBien[bid].slice().sort(function (a, b) { return a.arrivee < b.arrivee ? -1 : a.arrivee > b.arrivee ? 1 : 0; });
+    l.forEach(function (r) {
+      var suiv = null;
+      l.forEach(function (x) { if (x !== r && x.arrivee >= r.depart && (!suiv || x.arrivee < suiv.arrivee)) suiv = x; });
+      var g = groupe[bid] || ('__' + bid);
+      (taches[g] = taches[g] || []).push({ id: r.id, bien: bid, debut: r.depart, fin: suiv ? suiv.arrivee : null, suivante: suiv ? suiv.id : null });
+    });
+  });
+
+  var jours = {}, conflits = [];
+  Object.keys(taches).forEach(function (g) {
+    var t = taches[g].sort(function (a, b) { return a.debut < b.debut ? -1 : a.debut > b.debut ? 1 : 0; });
+    var i = 0, attente = [], jour = t.length ? t[0].debut : null, occupe = {}, echecs = [];
+    while (i < t.length || attente.length) {
+      if (!attente.length && t[i].debut > jour) jour = t[i].debut;
+      while (i < t.length && t[i].debut <= jour) attente.push(t[i++]);
+      attente = attente.filter(function (x) { if (x.fin && x.fin < jour) { echecs.push(x); return false; } return true; });
+      if (!attente.length) continue;
+      var k = 0;
+      for (var j = 1; j < attente.length; j++) {
+        var a = attente[j], b = attente[k];
+        if ((a.fin || '9999') < (b.fin || '9999')) k = j;
+      }
+      var choisi = attente.splice(k, 1)[0];
+      jours[choisi.id] = jour; occupe[jour] = choisi;
+      jour = ajouterJours_(jour, 1);
+    }
+    if (g.indexOf('__') === 0) return; // logement seul : jamais de conflit de planning
+    echecs.forEach(function (x) {
+      var pris = [], ids = {};
+      ids[x.id] = true; if (x.suivante) ids[x.suivante] = true;
+      for (var d = x.debut; d <= x.fin; d = ajouterJours_(d, 1)) {
+        if (occupe[d]) {
+          pris.push('« ' + (nom[occupe[d].bien] || occupe[d].bien) + ' » le ' + fr_(d).slice(0, 5));
+          ids[occupe[d].id] = true; if (occupe[d].suivante) ids[occupe[d].suivante] = true;
+        }
+      }
+      var bs = {};
+      bs[x.bien] = true;
+      Object.keys(ids).forEach(function (id) { var o = taches[g].filter(function (y) { return y.id === id; })[0]; if (o) bs[o.bien] = true; });
+      conflits.push({
+        cle: g + '|' + x.fin + '|menage|' + x.id, date: x.fin, groupe: g, type: 'menage',
+        biens: Object.keys(bs), reservations: Object.keys(ids),
+        message: 'Ménage impossible à caser pour « ' + (nom[x.bien] || x.bien) + ' » : départ le ' + fr_(x.debut).slice(0, 5) +
+                 ', voyageurs suivants le ' + fr_(x.fin).slice(0, 5) + (pris.length ? ', et ces jours-là le ménage est déjà pris (' + pris.join(', ') + ')' : '') +
+                 '. Un seul logement peut être préparé par jour.'
+      });
+    });
+  });
+  return { jours: jours, conflits: conflits };
 }
 
 /** « Est-ce que je peux accepter cette demande ? » — simule une réservation et renvoie les conflits qu'elle créerait. */
@@ -286,10 +338,11 @@ function rappelMenages() {
     var mes = String(u.biens || '').split(',').map(function (s) { return s.trim(); });
     var tous = mes.indexOf('*') >= 0;
     var lignes = [];
+    var jours = planningMenage_(resas, biens).jours;
     resas.forEach(function (r) {
       if (!tous && mes.indexOf(r.bien_id) < 0) return;
       var b = nom[r.bien_id] || { nom: r.bien_id };
-      if (r.depart === demain) lignes.push('🧹 Ménage ' + b.nom + ' — départ des voyageurs ' + (b.heure_depart || '11:00'));
+      if (jours[r.id] === demain) lignes.push('🧹 Ménage ' + b.nom + (r.depart === demain ? ' — départ des voyageurs ' + (b.heure_depart || '11:00') : ' — logement libre depuis le ' + fr_(r.depart).slice(0, 5)));
       if (r.arrivee === demain) lignes.push('🔑 Arrivée ' + b.nom + ' — ' + (b.heure_arrivee || '16:00') + (r.voyageurs ? ' · ' + r.voyageurs + ' pers.' : ''));
     });
     if (!lignes.length) return;

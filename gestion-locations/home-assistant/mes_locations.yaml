@@ -19,6 +19,13 @@
 # Si un identifiant a changé dans l'appli, adapter « biens.XXX » / « eau_chaude.XXX ».
 # ───────────────────────────────────────────────────────────────
 
+# Interrupteur posé par l'automatisation « eau chaude » quand personne n'a besoin d'eau chaude à Tilh.
+# Vos automatisations d'eau chaude peuvent le tester pour ne pas lancer de charge (voir README).
+input_boolean:
+  location_eau_chaude_absence:
+    name: "Locations — eau chaude en absence"
+    icon: mdi:water-boiler-off
+
 rest:
   - resource: !secret mes_locations_url
     scan_interval: 600
@@ -29,19 +36,19 @@ rest:
         icon: mdi:home-thermometer
         value_template: "{{ value_json.biens.TILH1.mode | default('unknown') }}"
         json_attributes_path: "$.biens.TILH1"
-        json_attributes: [consigne, occupe, raison, voyageurs, arrivee, depart, prochain_changement, prochain_mode, prochaine_consigne, planning]
+        json_attributes: [consigne, temp_confort, temp_eco, occupe, raison, voyageurs, arrivee, depart, prochain_changement, prochain_mode, prochaine_consigne, planning]
       - name: "Location Chalet chauffage"
         unique_id: mes_locations_tilh_2
         icon: mdi:home-thermometer
         value_template: "{{ value_json.biens.TILH2.mode | default('unknown') }}"
         json_attributes_path: "$.biens.TILH2"
-        json_attributes: [consigne, occupe, raison, voyageurs, arrivee, depart, prochain_changement, prochain_mode, prochaine_consigne, planning]
+        json_attributes: [consigne, temp_confort, temp_eco, occupe, raison, voyageurs, arrivee, depart, prochain_changement, prochain_mode, prochaine_consigne, planning]
       - name: "Location Soustons chauffage"
         unique_id: mes_locations_soustons
         icon: mdi:home-thermometer
         value_template: "{{ value_json.biens.SOUSTONS.mode | default('unknown') }}"
         json_attributes_path: "$.biens.SOUSTONS"
-        json_attributes: [consigne, occupe, raison, voyageurs, arrivee, depart, prochain_changement, prochain_mode, prochaine_consigne, planning]
+        json_attributes: [consigne, temp_confort, temp_eco, occupe, raison, voyageurs, arrivee, depart, prochain_changement, prochain_mode, prochaine_consigne, planning]
       - name: "Location Tilh eau chaude"
         unique_id: mes_locations_ecs_tilh
         icon: mdi:water-boiler

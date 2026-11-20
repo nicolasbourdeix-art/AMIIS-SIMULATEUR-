@@ -181,6 +181,7 @@ function calculDomotique_(maintenant) {
     var g = cfg.groupe_ecs || cfg.bien_id;
     biens[cfg.bien_id] = {
       nom: cfg.nom, mode: e.mode, consigne: e.consigne, occupe: !!e.sejour, raison: e.raison,
+      temp_confort: cfg.temp_confort, temp_eco: cfg.temp_eco,
       groupe_ecs: g,
       voyageurs: cible && cible.r.voyageurs !== '' ? Number(cible.r.voyageurs) : null,
       arrivee: e.suivant ? isoTZ_(e.suivant.a) : null,

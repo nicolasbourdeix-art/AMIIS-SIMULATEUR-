@@ -1,0 +1,54 @@
+# ───────────────────────────────────────────────────────────────
+# Mes Locations — automatisations prêtes à l'emploi pour vos logements
+# (à coller à la fin de automations.yaml, ou dans un fichier inclus ;
+#  nécessite le package mes_locations.yaml et les deux blueprints)
+# Entités reprises de vos cartes Home Assistant.
+# ───────────────────────────────────────────────────────────────
+
+# Le refuge en bois rustique — plancher chauffant (pompe à chaleur), avec votre programmation
+- id: mes_locations_chauffage_refuge
+  alias: "Locations — chauffage Le refuge en bois rustique"
+  use_blueprint:
+    path: mes_locations/chauffage.yaml
+    input:
+      capteur: sensor.location_refuge_chauffage
+      thermostats: [climate.plancher_chauffant]
+      programme_confort: [input_number.plancher_confort]
+      programme_eco: [input_number.plancher_eco]
+      derogation: [input_boolean.plancher_manuel]
+
+# Le petit chalet landais rustique — radiateurs (pompe à chaleur), avec votre programmation
+- id: mes_locations_chauffage_chalet
+  alias: "Locations — chauffage Le petit chalet landais rustique"
+  use_blueprint:
+    path: mes_locations/chauffage.yaml
+    input:
+      capteur: sensor.location_chalet_chauffage
+      thermostats: [climate.radiateurs_salon]
+      programme_confort: [input_number.radiateurs_confort]
+      programme_eco: [input_number.radiateurs_eco]
+      derogation: [input_boolean.radiateurs_manuel]
+
+# Soustons — radiateurs électriques : on règle directement les deux thermostats
+- id: mes_locations_chauffage_soustons
+  alias: "Locations — chauffage Soustons"
+  use_blueprint:
+    path: mes_locations/chauffage.yaml
+    input:
+      capteur: sensor.location_soustons_chauffage
+      thermostats: [climate.thermostat, climate.thermostat_chambre]
+
+# Eau chaude de Tilh (ballon commun sur la pompe à chaleur) : on garde votre gestion
+# (charge de nuit, solaire, légionelle) et on ajoute seulement :
+#  - « Eau chaude maintenant » au début de chaque relance avant une arrivée,
+#  - la résistance automatique coupée quand plus personne n'est là, rallumée ensuite,
+#  - l'indicateur d'absence pour vos propres automatisations.
+- id: mes_locations_eau_chaude_tilh
+  alias: "Locations — eau chaude Tilh"
+  use_blueprint:
+    path: mes_locations/eau_chaude.yaml
+    input:
+      capteur: sensor.location_tilh_eau_chaude
+      bouton_relance: [input_boolean.eau_chaude_relance]
+      couper_en_absence: [input_boolean.resistance_ballon_auto]
+      indicateur_absence: [input_boolean.location_eau_chaude_absence]

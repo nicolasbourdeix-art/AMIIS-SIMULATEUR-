@@ -11,6 +11,9 @@ blueprint:
 
     - **Arrêt** (personne) : température « logement vide », ou mode arrêt / vacances du chauffe-eau.
 
+    - Si vous avez déjà votre propre gestion de l'eau chaude (charge de nuit, solaire, légionelle…), ne renseignez
+      pas le chauffe-eau : utilisez plutôt le bouton de relance, l'indicateur d'absence et les éléments à couper.
+
     - Vérifié toutes les 15 minutes. Si l'application ne répond pas, rien n'est modifié.
   domain: automation
   input:
@@ -40,6 +43,32 @@ blueprint:
       description: Ex. « off », « vacation », « eco ». Vide = seulement baisser la température.
       default: ""
       selector: { text: {} }
+    bouton_relance:
+      name: Bouton « eau chaude maintenant » de votre installation (facultatif)
+      description: input_boolean allumé au début de chaque relance avant une arrivée (ex. input_boolean.eau_chaude_relance).
+      default: []
+      selector:
+        entity:
+          domain: input_boolean
+          multiple: true
+    indicateur_absence:
+      name: Indicateur d'absence (facultatif)
+      description: >
+        input_boolean allumé quand personne n'a besoin d'eau chaude, éteint sinon
+        (ex. input_boolean.location_eau_chaude_absence, créé par le package). Vos propres automatisations peuvent le tester.
+      default: []
+      selector:
+        entity:
+          domain: input_boolean
+          multiple: true
+    couper_en_absence:
+      name: À couper pendant l'absence, à rallumer ensuite (facultatif)
+      description: ex. input_boolean.resistance_ballon_auto (résistance d'appoint automatique).
+      default: []
+      selector:
+        entity:
+          domain: [input_boolean, switch]
+          multiple: true
     interrupteur:
       name: Ballon sur interrupteur (facultatif)
       description: Prise ou contacteur d'un ballon électrique simple (marche / arrêt).
@@ -64,13 +93,17 @@ trigger:
   - platform: state
     entity_id: !input capteur
     to: ~
+    id: changement
   - platform: state
     entity_id: !input capteur
     attribute: consigne_ecs
+    id: changement
   - platform: homeassistant
     event: start
+    id: demarrage
   - platform: time_pattern
     minutes: "/15"
+    id: periodique
 
 variables:
   capteur: !input capteur
@@ -78,6 +111,9 @@ variables:
   mode_marche: !input mode_marche
   mode_arret: !input mode_arret
   interrupteur: !input interrupteur
+  bouton_relance: !input bouton_relance
+  indicateur_absence: !input indicateur_absence
+  couper_en_absence: !input couper_en_absence
   hc: !input heures_creuses
   etat: "{{ states(capteur) }}"
   consigne: "{{ state_attr(capteur, 'consigne_ecs') | float(0) }}"
@@ -91,6 +127,27 @@ condition:
     value_template: "{{ etat not in ['unknown', 'unavailable', 'none', ''] and consigne > 0 }}"
 
 action:
+  - if:
+      - condition: template
+        value_template: "{{ trigger.id == 'changement' and etat == 'relance' and bouton_relance | count > 0 }}"
+    then:
+      - service: input_boolean.turn_on
+        target:
+          entity_id: "{{ bouton_relance }}"
+  - if:
+      - condition: template
+        value_template: "{{ indicateur_absence | count > 0 }}"
+    then:
+      - service: "input_boolean.turn_{{ 'off' if besoin else 'on' }}"
+        target:
+          entity_id: "{{ indicateur_absence }}"
+  - if:
+      - condition: template
+        value_template: "{{ trigger.id in ['changement', 'demarrage'] and couper_en_absence | count > 0 }}"
+    then:
+      - service: "homeassistant.turn_{{ 'on' if besoin else 'off' }}"
+        target:
+          entity_id: "{{ couper_en_absence }}"
   - repeat:
       for_each: "{{ chauffe_eau }}"
       sequence:

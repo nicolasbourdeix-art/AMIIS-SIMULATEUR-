@@ -130,7 +130,7 @@ var PARAMS_DEFAUT = [
   ['nom_app', 'Mes Locations', "Nom affiché en haut de l'application"],
   ['email_alertes', '', 'Adresse qui reçoit les alertes de conflit (séparer par des virgules)'],
   ['email_comptable', '', 'Adresse du comptable pour l\'envoi des justificatifs'],
-  ['regle_1_logement_par_jour', 'oui', 'Un seul logement préparé par jour : alerte dès que 2 logements du même groupe ont un départ ou une arrivée le même jour'],
+  ['regle_1_logement_par_jour', 'oui', 'Un seul logement préparé par jour : alerte si les ménages ne peuvent pas tous être faits entre chaque départ et l\'arrivée suivante'],
   ['regle_2_departs', 'oui', '(Si la règle « un logement par jour » est désactivée) alerte si 2 départs le même jour'],
   ['regle_2_arrivees', 'oui', '(Si la règle « un logement par jour » est désactivée) alerte si 2 arrivées le même jour'],
   ['ignorer_blocages', 'oui', 'Ignorer les dates simplement bloquées (« Not available ») dans Airbnb'],

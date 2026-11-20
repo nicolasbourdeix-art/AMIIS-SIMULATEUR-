@@ -635,9 +635,9 @@ function chargerMenages(){
   call('menages', {}).then(liste => {
     const auj=today();
     const l = liste.filter(m => S.menFiltre==='tous' || (m.statut!=='fait' && m.date >= addD(auj,-3)) );
-    $('men-count').textContent = liste.filter(m=>m.statut!=='fait' && m.date>=auj).length+' ménage(s) à venir';
+    $('men-count').textContent = liste.filter(m=>m.statut!=='fait' && (m.jour_menage||m.date)>=auj).length+' ménage(s) à venir';
     if (!l.length) { $('men-liste').innerHTML = '<div class="card empty">🎉 Aucun ménage à faire pour le moment.</div>'; return; }
-    const parJour={}; l.forEach(m=>(parJour[m.date]=parJour[m.date]||[]).push(m));
+    const parJour={}; l.forEach(m=>{ const j=m.jour_menage||m.date; (parJour[j]=parJour[j]||[]).push(m); });
     $('men-liste').innerHTML = Object.keys(parJour).sort().map(j => `<div class="mday"><h4 class="${j===auj?'today':''}">${esc(fd(j))} — ${esc(relJour(j))}</h4>
       ${parJour[j].map(m => carteMenage(m)).join('')}</div>`).join('');
     $('men-liste').querySelectorAll('[data-fait]').forEach(b => b.onclick = () => majMenage(b.dataset.fait, {statut: b.dataset.v}));
@@ -652,7 +652,7 @@ function carteMenage(m){
   else suite = `Prochaine arrivée : <b>${esc(fd(s.arrivee))}</b> (${esc(relJour(s.arrivee))}) à ${esc(s.heure)}`;
   return `<div class="mc${fait?' done':''}${m.conflit?' conf':''}" style="--c:${esc(b.couleur)}">
     <div class="top"><b>${esc(b.nom)}</b>${fait?`<span class="badge ok">✓ Fait${m.fait_par?' par '+esc(m.fait_par):''}</span>`:'<span class="badge acc">À faire</span>'}</div>
-    <div class="info">🧳 Départ des voyageurs à <b>${esc(m.heure_depart)}</b>${m.partants?' · '+esc(m.partants)+' pers.':''}${m.nuits?' · séjour de '+esc(m.nuits)+' nuits':''}<br>
+    <div class="info">${m.jour_menage && m.jour_menage!==m.date ? `📅 <b>Ménage prévu ce jour-là</b> (logement libre depuis le ${esc(fd(m.date))})<br>` : ''}🧳 Départ des voyageurs ${m.jour_menage && m.jour_menage!==m.date ? 'le '+esc(fd(m.date))+' ' : ''}à <b>${esc(m.heure_depart)}</b>${m.partants?' · '+esc(m.partants)+' pers.':''}${m.nuits?' · séjour de '+esc(m.nuits)+' nuits':''}<br>
     🔑 ${suite}${s&&s.voyageurs?`<br>👥 Préparer pour <b>${esc(s.voyageurs)} personne(s)</b>`:''}${s&&s.notes?`<br>📝 ${esc(s.notes)}`:''}
     ${m.conflit?`<div class="alert ko" style="margin:8px 0 0"><span>⚠️</span><div>${esc(m.conflit)}</div></div>`:''}</div>
     <textarea data-note="${esc(m.reservation_id)}" placeholder="Note (linge manquant, casse, produit à racheter…)">${esc(m.note)}</textarea>
