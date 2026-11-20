@@ -56,11 +56,10 @@ Home Assistant vient les lire toutes les 10 minutes et les applique. Rien à exp
 
 | Logement | Chauffage | Eau chaude |
 |---|---|---|
-| Tilh 1 | Plancher chauffant (pompe à chaleur) | Ballon commun « TILH » (pompe à chaleur) |
-| Tilh 2 | Radiateurs sur pompe à chaleur | Ballon commun « TILH » |
+| Le refuge en bois rustique (Tilh) | Plancher chauffant (pompe à chaleur) | Ballon commun « TILH » (pompe à chaleur) |
+| Le petit chalet landais rustique (Tilh) | Radiateurs sur pompe à chaleur | Ballon commun « TILH » |
 | Soustons | Radiateurs électriques (boîtiers, réglage par température) | Ballon propre |
 
-*Vérifiez quelle maison de Tilh a le plancher (Réglages → Chauffage & eau chaude) et inversez si besoin.*
 
 **Chauffage (par logement)**
 
@@ -122,14 +121,14 @@ le ballon chauffe dès qu'**au moins un** d'entre eux en a besoin, et ne s'arrê
    homeassistant:
      packages: !include_dir_named packages
    ```
-   → crée `sensor.location_tilh_1_chauffage`, `sensor.location_tilh_2_chauffage`, `sensor.location_soustons_chauffage`,
+   → crée `sensor.location_refuge_chauffage`, `sensor.location_chalet_chauffage`, `sensor.location_soustons_chauffage`,
    `sensor.location_tilh_eau_chaude`, `sensor.location_soustons_eau_chaude` et les capteurs d'occupation.
 4. Copier les deux fichiers de `home-assistant/blueprints/automation/mes_locations/` dans
    `config/blueprints/automation/mes_locations/`, puis redémarrer Home Assistant.
 5. Paramètres → Automatisations → Modèles :
    - **« Mes Locations — chauffage »** → une automatisation par logement, avec les entités de la carte correspondante :
-     - Tilh 1 → le thermostat de la carte **Plancher chauffant** (zone de la pompe à chaleur) ;
-     - Tilh 2 → le thermostat de la carte **Radiateur** ;
+     - Le refuge en bois rustique → le thermostat de la carte **Plancher chauffant** (zone de la pompe à chaleur) ;
+     - Le petit chalet landais rustique → le thermostat de la carte **Radiateur** ;
      - Soustons → les thermostats des boîtiers du tableau de bord **Soustons**.
    - **« Mes Locations — eau chaude »** → une automatisation pour Tilh avec l'entité de la carte **Eau chaude sanitaire**
      (en général un `water_heater` de la pompe à chaleur), et une pour Soustons si son ballon est pilotable.

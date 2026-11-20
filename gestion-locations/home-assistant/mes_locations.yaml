@@ -10,6 +10,7 @@
 #      mes_locations_url: "https://script.google.com/macros/s/XXXX/exec?ha=CLE"
 # 4. Redémarrer Home Assistant.
 #
+# TILH1 = Le refuge en bois rustique (plancher chauffant), TILH2 = Le petit chalet landais rustique (radiateurs).
 # Chauffage : un capteur par logement. État = mode (confort / menage / eco / inoccupe / arret),
 #   attribut « consigne » = température voulue.
 # Eau chaude : un capteur par ballon. État = relance / marche / arret,
@@ -23,13 +24,13 @@ rest:
     scan_interval: 600
     timeout: 60
     sensor:
-      - name: "Location Tilh 1 chauffage"
+      - name: "Location Refuge chauffage"
         unique_id: mes_locations_tilh_1
         icon: mdi:home-thermometer
         value_template: "{{ value_json.biens.TILH1.mode | default('unknown') }}"
         json_attributes_path: "$.biens.TILH1"
         json_attributes: [consigne, occupe, raison, voyageurs, arrivee, depart, prochain_changement, prochain_mode, prochaine_consigne, planning]
-      - name: "Location Tilh 2 chauffage"
+      - name: "Location Chalet chauffage"
         unique_id: mes_locations_tilh_2
         icon: mdi:home-thermometer
         value_template: "{{ value_json.biens.TILH2.mode | default('unknown') }}"
@@ -54,11 +55,11 @@ rest:
         json_attributes_path: "$.eau_chaude.SOUSTONS"
         json_attributes: [consigne_ecs, ecs, ecs_prioritaire, raison, logements, prochain_changement, prochain_etat, prochaine_consigne_ecs, planning]
     binary_sensor:
-      - name: "Location Tilh 1 occupée"
+      - name: "Location Refuge occupée"
         unique_id: mes_locations_tilh_1_occupe
         device_class: occupancy
         value_template: "{{ value_json.biens.TILH1.occupe | default(false) }}"
-      - name: "Location Tilh 2 occupée"
+      - name: "Location Chalet occupée"
         unique_id: mes_locations_tilh_2_occupe
         device_class: occupancy
         value_template: "{{ value_json.biens.TILH2.occupe | default(false) }}"

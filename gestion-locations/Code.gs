@@ -49,9 +49,9 @@ function installer() {
   // Biens de départ (modifiables ensuite dans Réglages → Biens)
   if (!lire_('Biens').length) {
     [
-      { id: 'TILH1', nom: 'Tilh — Logement 1', ville: 'Tilh', groupe_menage: 'TILH', couleur: '#E8930A',
+      { id: 'TILH1', nom: 'Le refuge en bois rustique', ville: 'Tilh', groupe_menage: 'TILH', couleur: '#E8930A',
         regle_type: 'seuil', regle_valeur: 600, regle_base: 'mois', proprietaire: 'Propriétaire Tilh' },
-      { id: 'TILH2', nom: 'Tilh — Logement 2', ville: 'Tilh', groupe_menage: 'TILH', couleur: '#2E86AB',
+      { id: 'TILH2', nom: 'Le petit chalet landais rustique', ville: 'Tilh', groupe_menage: 'TILH', couleur: '#2E86AB',
         regle_type: 'seuil', regle_valeur: 600, regle_base: 'mois', proprietaire: 'Propriétaire Tilh' },
       { id: 'SOUSTONS', nom: 'Soustons', ville: 'Soustons', groupe_menage: '', couleur: '#3BA55C',
         regle_type: 'total', regle_valeur: 0, regle_base: 'mois', proprietaire: '' }
@@ -82,7 +82,7 @@ function installer() {
   if (!lire_('Domotique').length) {
     // Tilh : une pompe à chaleur pour les deux maisons (plancher chauffant d'un côté, radiateurs de l'autre)
     // et un seul ballon d'eau chaude → même groupe eau chaude « TILH ». Soustons : radiateurs électriques.
-    // À vérifier dans Réglages → Chauffage & eau chaude (quelle maison a le plancher ?).
+    // TILH1 = Le refuge en bois rustique (plancher), TILH2 = Le petit chalet landais rustique (radiateurs).
     [['TILH1', 'plancher', 'TILH'], ['TILH2', 'pac_radiateurs', 'TILH'], ['SOUSTONS', 'radiateurs', '']].forEach(function (x) {
       var o = { bien_id: x[0] };
       Object.keys(DOMO_DEFAUT).forEach(function (k) { o[k] = DOMO_DEFAUT[k]; });
