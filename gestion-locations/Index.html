@@ -359,7 +359,7 @@ tfoot td{font-weight:800;border-top:2px solid var(--bd);border-bottom:none}
     <div class="card">
       <div class="card-title">Biens <button class="btn sm" id="reg-bien-new">+ Ajouter un bien</button></div>
       <div class="tbl-wrap"><table id="reg-biens"></table></div>
-      <p class="small muted" style="margin-top:8px">Les biens avec le même <b>groupe de ménage</b> (ex. TILH) sont surveillés ensemble : alerte si 2 départs ou 2 arrivées le même jour.</p>
+      <p class="small muted" style="margin-top:8px">Les biens avec le même <b>groupe de ménage</b> (ex. TILH) sont surveillés ensemble : un seul logement peut être préparé par jour, donc alerte dès que deux d'entre eux ont un départ ou une arrivée le même jour.</p>
     </div>
     <div class="card">
       <div class="card-title">Accès / utilisateurs <button class="btn sm" id="reg-user-new">+ Ajouter une personne</button></div>
@@ -830,10 +830,10 @@ function editerDoc(d){
 }
 
 /* ═══════════════════ Réglages ═══════════════════ */
-const LIB_PARAMS = { nom_app:'Nom de l\'application', email_alertes:'Email des alertes', email_comptable:'Email du comptable',
+const LIB_PARAMS = { regle_1_logement_par_jour:'Un seul logement préparé par jour', nom_app:'Nom de l\'application', email_alertes:'Email des alertes', email_comptable:'Email du comptable',
   regle_2_departs:'Alerte 2 départs le même jour', regle_2_arrivees:'Alerte 2 arrivées le même jour', ignorer_blocages:'Ignorer les dates bloquées',
   repartition_revenus:'Comptage des revenus', rappel_menage:'Rappel ménage la veille (18h)', import_emails:'Montants depuis les emails Airbnb', emails_transfert:'Emails transférés acceptés de' };
-const CHOIX_PARAMS = { regle_2_departs:[['oui','Oui'],['non','Non']], regle_2_arrivees:[['oui','Oui'],['non','Non']], ignorer_blocages:[['oui','Oui'],['non','Non']],
+const CHOIX_PARAMS = { regle_1_logement_par_jour:[['oui','Oui'],['non','Non']], regle_2_departs:[['oui','Oui'],['non','Non']], regle_2_arrivees:[['oui','Oui'],['non','Non']], ignorer_blocages:[['oui','Oui'],['non','Non']],
   rappel_menage:[['oui','Oui'],['non','Non']], import_emails:[['oui','Oui'],['non','Non']], repartition_revenus:[['arrivee','Au mois d\'arrivée'],['nuits','Au prorata des nuits']] };
 function chargerReglages(){
   chargerDomotique();

@@ -133,7 +133,9 @@ function resasActives_(resas) {
 }
 
 /**
- * Règles (pour les biens d'un même « groupe de ménage », ex. les deux maisons mitoyennes de Tilh) :
+ * Règle principale (paramètre regle_1_logement_par_jour, activé par défaut) : la personne du ménage ne peut
+ * préparer qu'UN logement par jour → conflit dès que deux logements d'un même groupe ont un départ ou une
+ * arrivée le même jour. Sinon, règles plus souples :
  *  - 2 départs le même jour  → deux ménages à faire le même jour : impossible
  *  - 2 arrivées le même jour → deux logements à préparer pour le même jour : impossible
  *  - chevauchement dans un même bien (double réservation)
@@ -155,8 +157,27 @@ function conflits_(resas, biens, p) {
     });
   });
 
+  var unParJour = p.regle_1_logement_par_jour !== 'non';
   Object.keys(parJour).forEach(function (k) {
     var e = parJour[k];
+    if (unParJour) {
+      // Une seule personne, un seul logement préparé par jour : conflit dès que deux logements
+      // du groupe ont un départ ou une arrivée le même jour (départ + arrivée dans le MÊME logement = OK).
+      var evts = {}, toutes = e.depart.concat(e.arrivee);
+      e.depart.forEach(function (r) { (evts[r.bien_id] = evts[r.bien_id] || []).push('départ'); });
+      e.arrivee.forEach(function (r) { (evts[r.bien_id] = evts[r.bien_id] || []).push('arrivée'); });
+      var lesBiens = Object.keys(evts);
+      if (lesBiens.length < 2) return;
+      var ids = {};
+      toutes.forEach(function (r) { ids[r.id] = true; });
+      out.push({
+        cle: e.groupe + '|' + e.date + '|journee', date: e.date, groupe: e.groupe, type: 'journee',
+        biens: lesBiens, reservations: Object.keys(ids),
+        message: lesBiens.map(function (b) { return evts[b].join(' + ') + ' à « ' + (nom[b] || b) + ' »'; }).join(', ') +
+                 ' le même jour : un seul logement peut être préparé par jour.'
+      });
+      return;
+    }
     [['depart', p.regle_2_departs !== 'non', 'départs'], ['arrivee', p.regle_2_arrivees !== 'non', 'arrivées']]
       .forEach(function (t) {
         if (!t[1]) return;

@@ -16,10 +16,11 @@ les justificatifs sont rangés dans **Google Drive**, les alertes partent par **
 | ⚙️ Réglages | Biens, liens Airbnb, règles de partage, accès des personnes, emails, **chauffage & eau chaude (Home Assistant)** |
 
 ### Alertes de ménage
-Les biens qui ont le même **groupe de ménage** (ex. `TILH` pour les deux logements mitoyens) sont surveillés ensemble :
-- **2 départs le même jour** → alerte (deux ménages le même jour)
-- **2 arrivées le même jour** → alerte (deux logements à préparer)
-- deux réservations qui se chevauchent dans un même bien → alerte
+Laetitia ne peut préparer **qu'un seul logement par jour** (en plus de son travail). Les biens qui ont le même
+**groupe de ménage** (`TILH` pour le refuge et le chalet) sont donc surveillés ensemble : il y a conflit dès que
+**les deux logements ont un mouvement le même jour** — deux départs, deux arrivées, ou un départ dans l'un et une arrivée dans l'autre.
+Un départ et une arrivée dans le **même** logement le même jour restent possibles (un seul logement à préparer).
+Deux réservations qui se chevauchent dans un même bien sont aussi signalées.
 
 Les alertes s'affichent dans l'application et un **email** part dès qu'un nouveau conflit apparaît après une synchro.
 
@@ -44,8 +45,9 @@ et remplit le montant, le nombre de voyageurs et le nom (avec une note « lit pa
 - Les montants lus dans un email sont marqués 📧, ceux saisis à la main ✍️. **Une saisie manuelle n'est jamais écrasée.**
 - Si la réservation est modifiée, le dernier email reçu fait foi.
 - ⚠️ Le script lit la boîte Gmail **du compte Google avec lequel il est créé et déployé** : créez-le avec le compte qui reçoit les emails Airbnb.
-- Soustons : si les emails Airbnb arrivent chez Xavier, il peut les transférer automatiquement (filtre Gmail) ; ajoutez son adresse
-  dans Réglages → Paramètres → « Emails transférés acceptés de ». Les autres expéditeurs sont ignorés.
+- Les trois annonces (« Le refuge en bois rustique », « Petit chalet landais rustique » et « Charmant appartement avec jardin privé » à Soustons)
+  sont sur le même compte Airbnb : tous les montants arrivent dans la même boîte. Si un jour des emails arrivent ailleurs, ils peuvent être
+  transférés : ajoutez l'adresse dans Réglages → Paramètres → « Emails transférés acceptés de » (les autres expéditeurs sont ignorés).
 - Bouton **📧 Récupérer les montants** dans l'onglet Réservations pour lancer la lecture tout de suite (elle remonte sur 13 mois).
 
 ### Chauffage et eau chaude pilotés par les réservations (Home Assistant)
@@ -58,7 +60,7 @@ Home Assistant vient les lire toutes les 10 minutes et les applique. Rien à exp
 |---|---|---|
 | Le refuge en bois rustique (Tilh) | Plancher chauffant (pompe à chaleur) | Ballon commun « TILH » (pompe à chaleur) |
 | Le petit chalet landais rustique (Tilh) | Radiateurs sur pompe à chaleur | Ballon commun « TILH » |
-| Soustons | Radiateurs électriques (boîtiers, réglage par température) | Ballon propre |
+| Soustons (« Charmant appartement avec jardin privé ») | Radiateurs électriques (boîtiers, réglage par température) | Ballon propre |
 
 
 **Chauffage (par logement)**
