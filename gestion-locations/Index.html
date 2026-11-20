@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<base target="_top">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mes Locations</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --acc:#E8930A; --acc-l:#FCEFD9; --bg:#F4F4F1; --card:#fff; --txt:#3A3A3A; --mut:#8B8B8B;
+  --bd:#E2E0DB; --bd2:#D0CCC8; --ok:#3BA55C; --ok-l:#E6F4EA; --ko:#D64545; --ko-l:#FBE7E7; --info:#2E86AB; --info-l:#E3F1F7;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg)}
+body{font-family:'Nunito Sans',sans-serif;font-size:14px;color:var(--txt);min-height:100vh;-webkit-text-size-adjust:100%}
+button,input,select,textarea{font-family:inherit;font-size:14px;color:inherit}
+.app{max-width:1100px;margin:0 auto;padding:16px 16px 60px}
+[hidden]{display:none!important}
+
+/* Header */
+.header{background:#fff;padding:14px 18px;border-radius:10px;margin-bottom:14px;display:flex;align-items:center;
+  justify-content:space-between;gap:12px;border:1px solid var(--bd);box-shadow:0 1px 4px rgba(0,0,0,.06);position:relative;overflow:hidden}
+.header::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:var(--acc)}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.brand h1{font-size:17px;font-weight:800;letter-spacing:-.01em}
+.brand p{font-size:11px;color:var(--mut)}
+.logo{width:40px;height:40px;flex-shrink:0}
+.who{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.who .name{font-size:12px;text-align:right;line-height:1.3}
+.who .name b{display:block;font-size:13px}
+
+/* Tabs */
+.tabs{display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:1 0 auto;padding:9px 12px;border:1px solid var(--bd2);border-radius:8px;background:#fff;cursor:pointer;
+  font-weight:700;font-size:13px;color:#6B6B6B;white-space:nowrap;transition:all .15s}
+.tab.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.tab:not(.on):hover{border-color:var(--acc);color:var(--acc)}
+.panel{display:none}.panel.on{display:block}
+
+/* Cards */
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:14px 16px;margin-bottom:12px}
+.card-title{font-size:11px;font-weight:800;color:var(--acc);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.grid{display:grid;gap:12px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
+.kpi{background:#fff;border:1px solid var(--bd);border-radius:10px;padding:12px 14px}
+.kpi .l{font-size:11px;color:var(--mut);font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.kpi .v{font-size:22px;font-weight:800;margin-top:2px;font-variant-numeric:tabular-nums}
+.kpi .s{font-size:11px;color:var(--mut)}
+.kpi.acc{border-color:var(--acc);background:var(--acc-l)}
+
+/* Forms */
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px 12px}
+.f{display:flex;flex-direction:column;gap:4px}
+.f.full{grid-column:1/-1}
+.f label{font-size:12px;font-weight:700;color:#4A4A4A}
+.f .hint{font-size:11px;color:var(--mut)}
+input[type=text],input[type=number],input[type=date],input[type=email],input[type=password],input[type=time],select,textarea{
+  width:100%;padding:8px 10px;border:1px solid var(--bd2);border-radius:6px;background:#fff;transition:border-color .15s}
+textarea{min-height:64px;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--acc)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 14px;border-radius:7px;border:1px solid var(--acc);
+  background:var(--acc);color:#fff;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap;text-decoration:none}
+.btn:hover{filter:brightness(.95)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.sec{background:#fff;color:var(--acc)}
+.btn.ghost{background:transparent;border-color:var(--bd2);color:#6B6B6B}
+.btn.ok{background:var(--ok);border-color:var(--ok)}
+.btn.ko{background:#fff;border-color:var(--ko);color:var(--ko)}
+.btn.sm{padding:5px 10px;font-size:12px}
+.btn.big{padding:14px 18px;font-size:15px;flex:1}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+
+/* Lists & tables */
+.tbl-wrap{overflow-x:auto;margin:0 -4px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);font-weight:800;padding:7px 6px;border-bottom:1px solid var(--bd);white-space:nowrap}
+td{padding:8px 6px;border-bottom:1px solid #F0EEEA;vertical-align:middle}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.click{cursor:pointer}tr.click:hover td{background:#FBFAF7}
+tfoot td{font-weight:800;border-top:2px solid var(--bd);border-bottom:none}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px;flex-shrink:0}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;background:#EEE;color:#555;white-space:nowrap}
+.badge.ok{background:var(--ok-l);color:#24753D}.badge.ko{background:var(--ko-l);color:#A83232}
+.badge.acc{background:var(--acc-l);color:#9A5F00}.badge.info{background:var(--info-l);color:#1D5F7B}
+.empty{color:var(--mut);font-size:13px;padding:10px 0;text-align:center}
+.muted{color:var(--mut)}.small{font-size:12px}
+
+/* Alerts */
+.alert{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:8px;margin-bottom:8px;font-size:13px}
+.alert.ko{background:var(--ko-l);color:#8A2727;border:1px solid #F3C4C4}
+.alert.ok{background:var(--ok-l);color:#1E6233;border:1px solid #BFE3CA}
+.alert.info{background:var(--info-l);color:#1D5F7B;border:1px solid #C3E1EE}
+.alert b{font-weight:800}
+
+/* Events list */
+.ev{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #F0EEEA}
+.ev:last-child{border-bottom:none}
+.ev .d{width:54px;text-align:center;flex-shrink:0;line-height:1.1}
+.ev .d b{display:block;font-size:18px}.ev .d span{font-size:11px;color:var(--mut);text-transform:uppercase}
+.ev .ic{font-size:18px;width:26px;text-align:center}
+.ev .t{flex:1;min-width:0}.ev .t b{font-size:13px}.ev .t div{font-size:12px;color:var(--mut)}
+
+/* Calendar timeline */
+.cal-nav{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cal-nav h3{font-size:16px;font-weight:800;min-width:150px;text-align:center;text-transform:capitalize}
+.tl{overflow-x:auto;border:1px solid var(--bd);border-radius:8px;background:#fff;--w:34px;--lab:130px}
+.tl-in{min-width:calc(var(--lab) + var(--n) * var(--w))}
+.tl-row{display:flex;border-bottom:1px solid #F0EEEA;position:relative}
+.tl-row:last-child{border-bottom:none}
+.tl-lab{width:var(--lab);flex-shrink:0;padding:8px;font-size:12px;font-weight:700;position:sticky;left:0;background:#fff;z-index:3;
+  border-right:1px solid var(--bd);display:flex;align-items:center;gap:4px;overflow:hidden}
+.tl-days{display:flex;position:relative;flex:1}
+.tl-day{width:var(--w);flex-shrink:0;text-align:center;font-size:11px;padding:4px 0;border-left:1px solid #F4F2EE;line-height:1.2}
+.tl-day.we{background:#FAF9F6}.tl-day.today{background:var(--acc-l)}
+.tl-day.conf{background:var(--ko-l)}
+.tl-head .tl-day{font-weight:700;color:#6B6B6B}.tl-head .tl-day small{display:block;font-weight:400;font-size:10px;color:var(--mut)}
+.tl-head .tl-day.conf{color:var(--ko)}
+.tl-track{height:44px}
+.bar{position:absolute;top:8px;height:28px;border-radius:6px;color:#fff;font-size:11px;font-weight:700;padding:0 6px;display:flex;
+  align-items:center;overflow:hidden;white-space:nowrap;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.15);z-index:2}
+.bar.clip-l{border-top-left-radius:0;border-bottom-left-radius:0}.bar.clip-r{border-top-right-radius:0;border-bottom-right-radius:0}
+.bar.nomontant::after{content:'€?';margin-left:auto;padding-left:4px;opacity:.8}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;margin-top:10px;color:#666}
+
+/* Ménage cards */
+.mday{margin-bottom:14px}
+.mday h4{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);margin:0 0 6px 2px;font-weight:800}
+.mday h4.today{color:var(--acc)}
+.mc{background:#fff;border:1px solid var(--bd);border-left:5px solid var(--c,#888);border-radius:10px;padding:12px 14px;margin-bottom:8px}
+.mc.done{opacity:.65}
+.mc.conf{border-color:#F3C4C4;border-left-color:var(--ko);background:#FFFBFB}
+.mc .top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.mc .top b{font-size:15px}
+.mc .info{font-size:13px;margin-top:6px;line-height:1.55}
+.mc .row2{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
+.mc textarea{min-height:40px;margin-top:8px;font-size:13px}
+
+/* Upload */
+.drop{border:2px dashed var(--bd2);border-radius:10px;padding:18px;text-align:center;color:var(--mut);margin-bottom:12px}
+.preview{max-width:100%;max-height:260px;border-radius:8px;border:1px solid var(--bd);display:block;margin:0 auto 12px}
+
+/* Modal */
+.modal-bg{position:fixed;inset:0;background:rgba(30,30,30,.45);display:flex;align-items:flex-start;justify-content:center;z-index:50;
+  padding:30px 12px;overflow-y:auto}
+.modal{background:#fff;border-radius:12px;max-width:620px;width:100%;padding:18px;box-shadow:0 10px 40px rgba(0,0,0,.2)}
+.modal h2{font-size:16px;font-weight:800;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.x{background:none;border:none;font-size:22px;cursor:pointer;color:var(--mut);line-height:1}
+
+/* Login */
+.login{max-width:380px;margin:60px auto;background:#fff;border:1px solid var(--bd);border-radius:12px;padding:26px 24px;
+  box-shadow:0 1px 4px rgba(0,0,0,.06);position:relative;overflow:hidden}
+.login::after{content:'';position:absolute;bottom:0;left:0;right:0;height:4px;background:var(--acc)}
+.login h1{font-size:20px;font-weight:800;margin:10px 0 4px;text-align:center}
+.login p{text-align:center;color:var(--mut);font-size:12px;margin-bottom:18px}
+.login .f{margin-bottom:12px}
+.login .btn{width:100%;padding:11px}
+.err{color:var(--ko);font-size:13px;margin-top:10px;text-align:center;min-height:18px}
+
+/* Toast & loader */
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#333;color:#fff;padding:10px 16px;border-radius:8px;
+  font-size:13px;z-index:80;max-width:92vw;box-shadow:0 4px 14px rgba(0,0,0,.25);white-space:pre-line}
+.toast.ko{background:var(--ko)}.toast.ok{background:var(--ok)}
+.loader{position:fixed;top:0;left:0;right:0;height:3px;z-index:90;background:linear-gradient(90deg,transparent,var(--acc),transparent);
+  background-size:200% 100%;animation:ld 1s linear infinite}
+@keyframes ld{from{background-position:200% 0}to{background-position:-200% 0}}
+.spin{animation:sp 1s linear infinite;display:inline-block}@keyframes sp{to{transform:rotate(360deg)}}
+
+@media (max-width:640px){
+  .app{padding:10px 10px 60px}
+  .header{padding:12px 14px}
+  .brand p{display:none}
+  .who .name{display:none}
+  .tab{padding:8px 10px;font-size:12px}
+  .tl{--w:30px;--lab:92px}
+  .tl-lab{font-size:11px;padding:6px}
+  .kpi .v{font-size:19px}
+  .hide-m{display:none}
+}
+</style>
+</head>
+<body>
+
+<div id="loader" class="loader" hidden></div>
+<div id="toast" class="toast" hidden></div>
+
+<!-- ═════ CONNEXION ═════ -->
+<div id="vue-login" class="app" hidden>
+  <form class="login" id="form-login" autocomplete="on">
+    <div style="text-align:center"><svg class="logo" style="width:54px;height:54px" viewBox="0 0 48 48" aria-hidden="true"><use href="#logo"/></svg></div>
+    <h1 id="login-titre">Mes Locations</h1>
+    <p>Connectez-vous avec l'identifiant qui vous a été donné.</p>
+    <div class="f"><label for="l-id">Identifiant</label><input type="text" id="l-id" autocomplete="username" autocapitalize="none" required></div>
+    <div class="f"><label for="l-mdp">Mot de passe</label><input type="password" id="l-mdp" autocomplete="current-password" required></div>
+    <button class="btn" type="submit" id="l-btn">Se connecter</button>
+    <div class="err" id="l-err"></div>
+  </form>
+</div>
+
+<!-- ═════ APPLICATION ═════ -->
+<div id="vue-app" class="app" hidden>
+  <div class="header">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 48 48" aria-hidden="true"><use href="#logo"/></svg>
+      <div><h1 id="app-titre">Mes Locations</h1><p id="app-sous">Réservations · ménages · revenus · justificatifs</p></div>
+    </div>
+    <div class="who">
+      <div class="name"><b id="u-nom"></b><span id="u-role" class="muted"></span></div>
+      <button class="btn ghost sm" id="btn-compte" title="Mon compte">👤</button>
+    </div>
+  </div>
+  <nav class="tabs" id="tabs"></nav>
+
+  <!-- ACCUEIL -->
+  <section class="panel" id="p-tab">
+    <div id="tab-alertes"></div>
+    <div class="kpis" id="tab-kpis"></div>
+    <div class="grid g2">
+      <div class="card">
+        <div class="card-title">Les 14 prochains jours <span class="muted small" id="tab-sync" style="text-transform:none;letter-spacing:0;font-weight:600"></span></div>
+        <div id="tab-ev"></div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="card-title">Vérifier une demande de réservation</div>
+          <p class="small muted" style="margin-bottom:10px">Avant d'accepter une demande, vérifiez qu'elle ne tombe pas un jour où le ménage est impossible.</p>
+          <div class="form">
+            <div class="f full"><label>Bien</label><select id="v-bien"></select></div>
+            <div class="f"><label>Arrivée</label><input type="date" id="v-arr"></div>
+            <div class="f"><label>Départ</label><input type="date" id="v-dep"></div>
+          </div>
+          <div class="actions"><button class="btn" id="v-btn">Vérifier</button></div>
+          <div id="v-res" style="margin-top:10px"></div>
+        </div>
+        <div class="card" id="tab-encours-card">
+          <div class="card-title">Occupé en ce moment</div>
+          <div id="tab-encours"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CALENDRIER -->
+  <section class="panel" id="p-cal">
+    <div class="card">
+      <div class="card-title">
+        <div class="cal-nav">
+          <button class="btn ghost sm" id="cal-prev">◀</button>
+          <h3 id="cal-titre"></h3>
+          <button class="btn ghost sm" id="cal-next">▶</button>
+          <button class="btn ghost sm" id="cal-auj">Aujourd'hui</button>
+        </div>
+        <button class="btn sec sm" id="cal-sync" data-roles="admin,gestionnaire">⟳ Synchroniser Airbnb</button>
+      </div>
+      <div id="cal-grid"></div>
+      <div class="legend">
+        <span><span class="dot" style="background:var(--ko-l);border:1px solid var(--ko)"></span>Jour de conflit ménage</span>
+        <span><span class="dot" style="background:var(--acc-l);border:1px solid var(--acc)"></span>Aujourd'hui</span>
+        <span data-roles="admin,gestionnaire">« €? » = montant pas encore saisi</span>
+      </div>
+    </div>
+    <div class="card"><div class="card-title">Alertes du mois</div><div id="cal-alertes"></div></div>
+  </section>
+
+  <!-- MÉNAGES -->
+  <section class="panel" id="p-men">
+    <div class="card" style="padding:10px 14px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between">
+        <div style="display:flex;gap:6px">
+          <button class="btn sm" data-mf="afaire">À faire</button>
+          <button class="btn ghost sm" data-mf="tous">Tout (y compris faits)</button>
+        </div>
+        <span class="small muted" id="men-count"></span>
+      </div>
+    </div>
+    <div id="men-liste"></div>
+  </section>
+
+  <!-- RÉSERVATIONS -->
+  <section class="panel" id="p-res">
+    <div class="card">
+      <div class="card-title">Réservations
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <select id="res-annee" style="width:auto"></select>
+          <select id="res-bien" style="width:auto"></select>
+          <button class="btn sm" id="res-new" data-roles="admin,gestionnaire">+ Réservation hors Airbnb</button>
+        </div>
+      </div>
+      <p class="small muted" style="margin-bottom:8px">Les réservations Airbnb arrivent toutes seules (toutes les heures). Airbnb ne transmet pas les montants : cliquez sur une ligne pour saisir le <b>montant net versé</b>.</p>
+      <div class="tbl-wrap"><table id="res-tbl"></table></div>
+    </div>
+  </section>
+
+  <!-- REVENUS -->
+  <section class="panel" id="p-rev">
+    <div class="card" style="padding:10px 14px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <label class="small" style="font-weight:700">Année</label><select id="rev-annee" style="width:auto"></select>
+        <label class="small" style="font-weight:700">Compter le revenu</label>
+        <select id="rev-mode" style="width:auto">
+          <option value="">selon les réglages</option><option value="arrivee">au mois d'arrivée</option><option value="nuits">au prorata des nuits</option>
+        </select>
+      </div>
+    </div>
+    <div id="rev-alerte"></div>
+    <div class="kpis" id="rev-kpis"></div>
+    <div id="rev-biens"></div>
+  </section>
+
+  <!-- JUSTIFICATIFS -->
+  <section class="panel" id="p-doc">
+    <div class="card">
+      <div class="card-title">Ajouter un ticket ou une facture</div>
+      <div id="up-start">
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <label class="btn big" for="up-cam">📷 Prendre en photo</label>
+          <label class="btn sec big" for="up-file">📁 Choisir un fichier</label>
+        </div>
+        <input type="file" id="up-cam" accept="image/*" capture="environment" hidden>
+        <input type="file" id="up-file" accept="image/*,application/pdf" hidden>
+      </div>
+      <div id="up-form" hidden>
+        <img id="up-prev" class="preview" alt="">
+        <div id="up-pdf" class="drop" hidden></div>
+        <div class="form">
+          <div class="f"><label>Date du ticket</label><input type="date" id="up-date"></div>
+          <div class="f"><label>Montant TTC (€)</label><input type="number" id="up-montant" step="0.01" min="0" inputmode="decimal"></div>
+          <div class="f"><label>Bien</label><select id="up-bien"></select></div>
+          <div class="f"><label>Type</label><select id="up-type"><option value="ticket">Ticket de caisse</option><option value="facture">Facture</option><option value="autre">Autre</option></select></div>
+          <div class="f"><label>Catégorie</label><select id="up-cat"></select></div>
+          <div class="f"><label>Fournisseur / magasin</label><input type="text" id="up-four"></div>
+          <div class="f" data-roles="admin,gestionnaire"><label>À la charge de</label><select id="up-imp"><option value="moi">Moi</option><option value="proprietaire">Propriétaire</option><option value="partage">Partagé 50/50</option></select></div>
+          <div class="f full"><label>Note (facultatif)</label><input type="text" id="up-desc" placeholder="ex. draps pour le logement 2"></div>
+        </div>
+        <div class="actions">
+          <button class="btn" id="up-save">Enregistrer</button>
+          <button class="btn ghost" id="up-cancel">Annuler</button>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Justificatifs
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+          <select id="doc-annee" style="width:auto"></select>
+          <select id="doc-filtre" style="width:auto"><option value="">Tous</option><option value="non">Pas encore envoyés</option><option value="oui">Déjà envoyés</option></select>
+          <button class="btn sm" id="doc-send" data-roles="admin,gestionnaire" disabled>✉️ Envoyer au comptable</button>
+        </div>
+      </div>
+      <div class="tbl-wrap"><table id="doc-tbl"></table></div>
+    </div>
+  </section>
+
+  <!-- RÉGLAGES -->
+  <section class="panel" id="p-reg">
+    <div class="card">
+      <div class="card-title">Biens <button class="btn sm" id="reg-bien-new">+ Ajouter un bien</button></div>
+      <div class="tbl-wrap"><table id="reg-biens"></table></div>
+      <p class="small muted" style="margin-top:8px">Les biens avec le même <b>groupe de ménage</b> (ex. THIEL) sont surveillés ensemble : alerte si 2 départs ou 2 arrivées le même jour.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">Accès / utilisateurs <button class="btn sm" id="reg-user-new">+ Ajouter une personne</button></div>
+      <div class="tbl-wrap"><table id="reg-users"></table></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Paramètres</div>
+      <div class="form" id="reg-params"></div>
+      <div class="actions"><button class="btn" id="reg-params-save">Enregistrer les paramètres</button></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Liens utiles</div>
+      <div id="reg-liens" class="small"></div>
+    </div>
+  </section>
+</div>
+
+<div id="modal-root"></div>
+
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="logo" viewBox="0 0 48 48">
+    <rect x="1" y="1" width="46" height="46" rx="12" fill="#FCEFD9"/>
+    <path d="M10 24 L24 12 L38 24" fill="none" stroke="#E8930A" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M14 22 V36 H34 V22" fill="none" stroke="#E8930A" stroke-width="3.2" stroke-linejoin="round"/>
+    <rect x="21" y="27" width="6" height="9" rx="1" fill="#E8930A"/>
+  </symbol>
+</svg>
+
+<script>
+/* ═══════════════════ Base ═══════════════════ */
+const S = { token:null, user:null, biens:[], categories:[], roles:{}, params:{}, onglet:null,
+  calY:null, calM:null, menFiltre:'afaire', docs:[], docSel:new Set(), upload:null, reg:null };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const store = { get(k){ try{return localStorage.getItem(k)}catch(e){return null} }, set(k,v){ try{localStorage.setItem(k,v)}catch(e){} }, del(k){ try{localStorage.removeItem(k)}catch(e){} } };
+
+let charge = 0;
+function loading(on){ charge += on ? 1 : -1; $('loader').hidden = charge <= 0; }
+
+function call(action, data){
+  loading(true);
+  return new Promise((res, rej) => {
+    google.script.run
+      .withSuccessHandler(r => { loading(false);
+        if (r && r.ok) return res(r.data);
+        if (r && r.auth) { deconnecter(true); }
+        rej(new Error(r ? r.error : 'Erreur inconnue'));
+      })
+      .withFailureHandler(e => { loading(false); rej(e instanceof Error ? e : new Error(String(e && e.message || e))); })
+      .api(S.token, action, data || {});
+  });
+}
+
+let toastT;
+function toast(msg, type){ const t=$('toast'); t.textContent=msg; t.className='toast '+(type||''); t.hidden=false;
+  clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true, type==='ko'?6000:3200); }
+const erreur = e => toast(e.message || String(e), 'ko');
+
+/* Dates : chaînes 'aaaa-mm-jj' */
+const pad = n => String(n).padStart(2,'0');
+const iso = d => d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const today = () => iso(new Date());
+const toD = s => { const p=s.split('-'); return new Date(+p[0], +p[1]-1, +p[2]); };
+const addD = (s,n) => { const d=toD(s); d.setDate(d.getDate()+n); return iso(d); };
+const diffD = (a,b) => Math.round((toD(b)-toD(a))/86400000);
+const JOURS = ['dim.','lun.','mar.','mer.','jeu.','ven.','sam.'];
+const MOIS = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+const MOISC = ['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+const fd = s => { if(!s) return ''; const d=toD(s); return JOURS[d.getDay()]+' '+d.getDate()+' '+MOISC[d.getMonth()]; };
+const fdl = s => { if(!s) return ''; const d=toD(s); return d.getDate()+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear(); };
+const eur = n => (Number(n)||0).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
+const eur0 = n => Math.round(Number(n)||0).toLocaleString('fr-FR')+' €';
+const relJour = s => { const d=diffD(today(), s); return d===0?"aujourd'hui":d===1?'demain':d===-1?'hier':d>1?'dans '+d+' j':'il y a '+(-d)+' j'; };
+
+const bien = id => S.biens.find(b=>b.id===id) || {id, nom:id||'Général', couleur:'#999'};
+const peut = (...roles) => roles.includes(S.user && S.user.role);
+const voitMontants = () => !peut('menage');
+const pastille = id => { const b=bien(id); return `<span class="dot" style="background:${esc(b.couleur)}"></span>${esc(b.nom)}`; };
+
+function options(sel, items, val){ sel.innerHTML = items.map(([v,l])=>`<option value="${esc(v)}"${String(v)===String(val)?' selected':''}>${esc(l)}</option>`).join(''); }
+function annees(sel, val){ const y=new Date().getFullYear(); options(sel, [y+1,y,y-1,y-2,y-3].map(a=>[a,a]), val||y); }
+
+/* ═══════════════════ Connexion ═══════════════════ */
+$('form-login').addEventListener('submit', e => {
+  e.preventDefault();
+  $('l-err').textContent=''; $('l-btn').disabled=true; loading(true);
+  google.script.run
+    .withSuccessHandler(r => { loading(false); $('l-btn').disabled=false;
+      if (!r.ok) { $('l-err').textContent = r.error; return; }
+      S.token = r.data.token; store.set('loc_token', S.token); $('l-mdp').value=''; demarrer(); })
+    .withFailureHandler(err => { loading(false); $('l-btn').disabled=false; $('l-err').textContent = err.message || 'Erreur'; })
+    .connexion($('l-id').value, $('l-mdp').value);
+});
+
+function deconnecter(silencieux){
+  if (!silencieux && S.token) call('deconnexion').catch(()=>{});
+  S.token=null; S.user=null; store.del('loc_token');
+  $('vue-app').hidden=true; $('vue-login').hidden=false;
+}
+
+function demarrer(){
+  call('init').then(d => {
+    S.user=d.user; S.biens=d.biens; S.categories=d.categories; S.roles=d.roles; S.params=d.params;
+    document.title = d.params.nom_app || 'Mes Locations';
+    $('app-titre').textContent = d.params.nom_app || 'Mes Locations';
+    $('u-nom').textContent = d.user.nom || d.user.identifiant; $('u-role').textContent = d.user.role_label;
+    $('vue-login').hidden=true; $('vue-app').hidden=false;
+    document.querySelectorAll('[data-roles]').forEach(el => el.hidden = !el.dataset.roles.split(',').includes(d.user.role));
+    preparer();
+    construireOnglets();
+  }).catch(e => { if (!S.token) { $('vue-login').hidden=false; } else erreur(e); });
+}
+
+/* ═══════════════════ Onglets ═══════════════════ */
+const TOUS = ['admin','gestionnaire','menage','comptable'];
+const ONGLETS = [
+  {id:'tab', l:'🏠 Accueil', roles:TOUS, f:()=>chargerAccueil()},
+  {id:'cal', l:'📅 Calendrier', roles:TOUS, f:()=>chargerCal()},
+  {id:'men', l:'🧹 Ménages', roles:['admin','gestionnaire','menage'], f:()=>chargerMenages()},
+  {id:'res', l:'🛏️ Réservations', roles:['admin','gestionnaire','comptable'], f:()=>chargerResas()},
+  {id:'rev', l:'💶 Revenus', roles:['admin','gestionnaire','comptable'], f:()=>chargerRevenus()},
+  {id:'doc', l:'🧾 Justificatifs', roles:TOUS, f:()=>chargerDocs()},
+  {id:'reg', l:'⚙️ Réglages', roles:['admin'], f:()=>chargerReglages()},
+];
+function construireOnglets(){
+  const dispo = ONGLETS.filter(o=>o.roles.includes(S.user.role));
+  $('tabs').innerHTML = dispo.map(o=>`<button class="tab" data-tab="${o.id}">${o.l}</button>`).join('');
+  $('tabs').querySelectorAll('.tab').forEach(b => b.onclick = () => ouvrir(b.dataset.tab));
+  const defaut = {menage:'men', comptable:'rev'}[S.user.role] || 'tab';
+  const memo = store.get('loc_onglet');
+  ouvrir(dispo.some(o=>o.id===memo) ? memo : defaut);
+}
+function ouvrir(id){
+  S.onglet=id; store.set('loc_onglet', id);
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on', t.dataset.tab===id));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('on', p.id==='p-'+id));
+  ONGLETS.find(o=>o.id===id).f();
+}
+function rafraichir(){ const o=ONGLETS.find(x=>x.id===S.onglet); if(o) o.f(); }
+
+function preparer(){
+  const lb = S.biens.map(b=>[b.id,b.nom]);
+  options($('v-bien'), lb);
+  options($('res-bien'), [['','Tous les biens'], ...lb]);
+  options($('up-bien'), [...lb, ['','Général (pas un bien précis)']]);
+  options($('up-cat'), S.categories.map(c=>[c,c]), S.user.role==='menage'?'Produits ménage':'');
+  annees($('res-annee')); annees($('rev-annee')); annees($('doc-annee'));
+  const now=new Date(); S.calY=now.getFullYear(); S.calM=now.getMonth();
+}
+
+/* ═══════════════════ Accueil ═══════════════════ */
+function blocConflits(liste){
+  if (!liste.length) return '';
+  return liste.map(c=>`<div class="alert ko"><span>⚠️</span><div><b>${esc(fd(c.date))} (${esc(relJour(c.date))})</b> — ${esc(c.message)}</div></div>`).join('');
+}
+function chargerAccueil(){
+  call('tableau').then(d => {
+    $('tab-alertes').innerHTML = blocConflits(d.conflits);
+    const k = [];
+    if (d.mois) {
+      k.push(`<div class="kpi acc"><div class="l">${esc(MOIS[new Date().getMonth()])} — encaissé</div><div class="v">${eur0(d.mois.brut)}</div><div class="s">${d.mois.sejours} séjour(s) · ${d.mois.nuits} nuits</div></div>`);
+    }
+    k.push(`<div class="kpi"><div class="l">Ménages (7 jours)</div><div class="v">${d.menages_7j}</div><div class="s">à faire</div></div>`);
+    k.push(`<div class="kpi"><div class="l">Conflits à venir</div><div class="v" style="color:${d.conflits.length?'var(--ko)':'var(--ok)'}">${d.conflits.length}</div><div class="s">${d.conflits.length?'à régler':'tout va bien'}</div></div>`);
+    if (d.sans_montant !== undefined) k.push(`<div class="kpi"><div class="l">Montants à saisir</div><div class="v">${d.sans_montant}</div><div class="s">séjours sans montant</div></div>`);
+    k.push(`<div class="kpi"><div class="l">Justificatifs</div><div class="v">${d.docs_a_envoyer}</div><div class="s">pas encore envoyés</div></div>`);
+    $('tab-kpis').innerHTML = k.join('');
+    $('tab-sync').textContent = d.derniere_synchro ? 'synchro Airbnb : '+d.derniere_synchro.slice(8,10)+'/'+d.derniere_synchro.slice(5,7)+' '+d.derniere_synchro.slice(11) : '';
+    $('tab-ev').innerHTML = d.evenements.length ? d.evenements.map(e => {
+      const dd=toD(e.date), r=e.r, b=bien(r.bien_id);
+      const h = e.type==='arrivee' ? b.heure_arrivee : b.heure_depart;
+      return `<div class="ev"><div class="d"><b>${dd.getDate()}</b><span>${JOURS[dd.getDay()]} ${MOISC[dd.getMonth()]}</span></div>
+        <div class="ic">${e.type==='arrivee'?'🔑':'🧳'}</div>
+        <div class="t"><b>${e.type==='arrivee'?'Arrivée':'Départ + ménage'} · ${pastille(r.bien_id)}</b>
+        <div>${esc(h)} · ${esc(r.voyageur||r.code||'Voyageur')}${r.voyageurs?' · '+r.voyageurs+' pers.':''}${r.nuits?' · '+r.nuits+' nuits':''}</div></div></div>`;
+    }).join('') : '<div class="empty">Rien de prévu dans les 14 prochains jours.</div>';
+    $('tab-encours').innerHTML = d.en_cours.length ? d.en_cours.map(r=>`<div class="ev"><div class="ic">🛏️</div><div class="t"><b>${pastille(r.bien_id)}</b><div>${esc(r.voyageur||r.code||'Voyageur')} · départ ${esc(fd(r.depart))}</div></div></div>`).join('') : '<div class="empty">Aucun logement occupé aujourd\'hui.</div>';
+  }).catch(erreur);
+}
+$('v-btn').onclick = () => {
+  const p={bien_id:$('v-bien').value, arrivee:$('v-arr').value, depart:$('v-dep').value};
+  if (!p.arrivee || !p.depart) return toast('Indiquez les deux dates.','ko');
+  call('verifier', p).then(r => {
+    $('v-res').innerHTML = `<div class="alert ${r.ok?'ok':'ko'}"><div style="white-space:pre-line">${esc(r.message)}</div></div>`;
+  }).catch(erreur);
+};
+$('v-arr').onchange = () => { if ($('v-arr').value && (!$('v-dep').value || $('v-dep').value <= $('v-arr').value)) $('v-dep').value = addD($('v-arr').value, 2); };
+
+/* ═══════════════════ Calendrier ═══════════════════ */
+function chargerCal(){
+  const y=S.calY, m=S.calM, n=new Date(y, m+1, 0).getDate();
+  const debut = `${y}-${pad(m+1)}-01`, fin = `${y}-${pad(m+1)}-${pad(n)}`;
+  $('cal-titre').textContent = MOIS[m]+' '+y;
+  call('calendrier', {debut, fin}).then(d => dessinerCal(d, y, m, n, debut, fin)).catch(erreur);
+}
+function dessinerCal(d, y, m, n, debut, fin){
+  const W = matchMedia('(max-width:640px)').matches ? 30 : 34;
+  const auj = today();
+  const confJour = {}; d.conflits.forEach(c => { (confJour[c.date] = confJour[c.date] || []).push(c); });
+  const confBien = {}; d.conflits.forEach(c => c.biens.forEach(b => confBien[b+'|'+c.date]=true));
+  let jours = '';
+  for (let i=1;i<=n;i++){ const ds=`${y}-${pad(m+1)}-${pad(i)}`, dw=new Date(y,m,i).getDay();
+    jours += `<div class="tl-day${dw===0||dw===6?' we':''}${ds===auj?' today':''}${confJour[ds]?' conf':''}" title="${confJour[ds]?esc(confJour[ds].map(c=>c.message).join('\n')):''}">${i}<small>${'DLMMJVS'[dw]}${confJour[ds]?' ⚠':''}</small></div>`; }
+  let html = `<div class="tl" style="--n:${n};--w:${W}px"><div class="tl-in"><div class="tl-row tl-head"><div class="tl-lab">Bien</div><div class="tl-days">${jours}</div></div>`;
+  S.biens.forEach(b => {
+    let fond=''; for (let i=1;i<=n;i++){ const ds=`${y}-${pad(m+1)}-${pad(i)}`, dw=new Date(y,m,i).getDay();
+      fond += `<div class="tl-day tl-track${dw===0||dw===6?' we':''}${ds===auj?' today':''}${confBien[b.id+'|'+ds]?' conf':''}"></div>`; }
+    let barres='';
+    d.reservations.filter(r=>r.bien_id===b.id).forEach(r => {
+      const s = diffD(debut, r.arrivee), e = diffD(debut, r.depart);
+      let left=(s+0.5)*W, right=(e+0.5)*W; const max=n*W;
+      const cl = left<0, cr = right>max; left=Math.max(0,left); right=Math.min(max,right);
+      if (right-left < 4) return;
+      const lib = r.type==='blocage' ? 'Bloqué' : (r.voyageur || r.code || 'Réservé');
+      const nm = voitMontants() && r.type!=='blocage' && (r.montant===''||r.montant===undefined||r.montant===null);
+      barres += `<div class="bar${cl?' clip-l':''}${cr?' clip-r':''}${nm?' nomontant':''}" data-id="${esc(r.id)}" style="left:${left}px;width:${right-left}px;background:${r.type==='blocage'?'#AAA':esc(b.couleur)}" title="${esc(lib)} — ${esc(fdl(r.arrivee))} → ${esc(fdl(r.depart))}">${esc(lib)}${r.voyageurs?' · '+r.voyageurs+'p':''}</div>`;
+    });
+    html += `<div class="tl-row"><div class="tl-lab"><span class="dot" style="background:${esc(b.couleur)}"></span>${esc(b.nom)}</div><div class="tl-days">${fond}${barres}</div></div>`;
+  });
+  html += '</div></div>';
+  $('cal-grid').innerHTML = html;
+  $('cal-grid').querySelectorAll('.bar').forEach(el => el.onclick = () => {
+    const r = d.reservations.find(x=>x.id===el.dataset.id); if (r) ficheResa(r);
+  });
+  const sc = $('cal-grid').querySelector('.tl');
+  if (auj >= debut && auj <= fin) sc.scrollLeft = Math.max(0, (diffD(debut, auj)-3)*W);
+  $('cal-alertes').innerHTML = blocConflits(d.conflits) || '<div class="alert ok">✅ Aucun conflit de ménage ce mois-ci.</div>';
+}
+$('cal-prev').onclick = () => { S.calM--; if (S.calM<0){S.calM=11;S.calY--;} chargerCal(); };
+$('cal-next').onclick = () => { S.calM++; if (S.calM>11){S.calM=0;S.calY++;} chargerCal(); };
+$('cal-auj').onclick = () => { const n=new Date(); S.calY=n.getFullYear(); S.calM=n.getMonth(); chargerCal(); };
+$('cal-sync').onclick = () => {
+  const b=$('cal-sync'); b.disabled=true; b.innerHTML='<span class="spin">⟳</span> Synchronisation…';
+  call('synchroniser').then(r => {
+    const t = r.biens.map(x => `${x.bien} : ${x.erreur ? '❌ '+x.erreur : `+${x.nouvelles} nouvelle(s), ${x.modifiees} modifiée(s), ${x.annulees} annulée(s)`}`).join('\n');
+    toast(r.biens.length ? t : 'Aucun calendrier Airbnb renseigné (Réglages → Biens).', r.biens.some(x=>x.erreur)?'ko':'ok');
+    rafraichir();
+  }).catch(erreur).finally(()=>{ b.disabled=false; b.textContent='⟳ Synchroniser Airbnb'; });
+};
+
+function ficheResa(r){
+  const b=bien(r.bien_id);
+  const lignes = [
+    ['Bien', pastille(r.bien_id)], ['Arrivée', esc(fd(r.arrivee))+' · '+esc(b.heure_arrivee)], ['Départ', esc(fd(r.depart))+' · '+esc(b.heure_depart)],
+    ['Nuits', esc(r.nuits)], ['Voyageur', esc(r.voyageur||'—')], ['Personnes', esc(r.voyageurs||'—')],
+    r.code ? ['Code', esc(r.code)] : null,
+    voitMontants() ? ['Montant net', r.montant!==''&&r.montant!=null ? eur(r.montant) : '<span class="badge acc">à saisir</span>'] : null,
+    r.notes ? ['Notes', esc(r.notes)] : null
+  ].filter(Boolean);
+  modal('Séjour', `<table>${lignes.map(l=>`<tr><td class="muted" style="width:110px">${l[0]}</td><td>${l[1]}</td></tr>`).join('')}</table>
+    <div class="actions">${peut('admin','gestionnaire')?'<button class="btn" id="fr-edit">Modifier</button>':''}<button class="btn ghost" data-close>Fermer</button></div>`);
+  const e=$('fr-edit'); if (e) e.onclick = () => { fermer(); editerResa(r); };
+}
+
+/* ═══════════════════ Ménages ═══════════════════ */
+document.querySelectorAll('[data-mf]').forEach(b => b.onclick = () => {
+  S.menFiltre=b.dataset.mf; document.querySelectorAll('[data-mf]').forEach(x=>x.className='btn sm'+(x===b?'':' ghost')); chargerMenages();
+});
+function chargerMenages(){
+  call('menages', {}).then(liste => {
+    const auj=today();
+    const l = liste.filter(m => S.menFiltre==='tous' || (m.statut!=='fait' && m.date >= addD(auj,-3)) );
+    $('men-count').textContent = liste.filter(m=>m.statut!=='fait' && m.date>=auj).length+' ménage(s) à venir';
+    if (!l.length) { $('men-liste').innerHTML = '<div class="card empty">🎉 Aucun ménage à faire pour le moment.</div>'; return; }
+    const parJour={}; l.forEach(m=>(parJour[m.date]=parJour[m.date]||[]).push(m));
+    $('men-liste').innerHTML = Object.keys(parJour).sort().map(j => `<div class="mday"><h4 class="${j===auj?'today':''}">${esc(fd(j))} — ${esc(relJour(j))}</h4>
+      ${parJour[j].map(m => carteMenage(m)).join('')}</div>`).join('');
+    $('men-liste').querySelectorAll('[data-fait]').forEach(b => b.onclick = () => majMenage(b.dataset.fait, {statut: b.dataset.v}));
+    $('men-liste').querySelectorAll('textarea[data-note]').forEach(t => t.onchange = () => majMenage(t.dataset.note, {note:t.value}, true));
+  }).catch(erreur);
+}
+function carteMenage(m){
+  const b=bien(m.bien_id), s=m.suivante, fait=m.statut==='fait';
+  let suite;
+  if (!s) suite = 'Pas de prochaine réservation pour l\'instant.';
+  else if (s.jour_meme) suite = `<b style="color:var(--ko)">⚡ Nouveaux voyageurs le jour même à ${esc(s.heure)}</b> — ménage entre ${esc(m.heure_depart)} et ${esc(s.heure)}`;
+  else suite = `Prochaine arrivée : <b>${esc(fd(s.arrivee))}</b> (${esc(relJour(s.arrivee))}) à ${esc(s.heure)}`;
+  return `<div class="mc${fait?' done':''}${m.conflit?' conf':''}" style="--c:${esc(b.couleur)}">
+    <div class="top"><b>${esc(b.nom)}</b>${fait?`<span class="badge ok">✓ Fait${m.fait_par?' par '+esc(m.fait_par):''}</span>`:'<span class="badge acc">À faire</span>'}</div>
+    <div class="info">🧳 Départ des voyageurs à <b>${esc(m.heure_depart)}</b>${m.partants?' · '+esc(m.partants)+' pers.':''}${m.nuits?' · séjour de '+esc(m.nuits)+' nuits':''}<br>
+    🔑 ${suite}${s&&s.voyageurs?`<br>👥 Préparer pour <b>${esc(s.voyageurs)} personne(s)</b>`:''}${s&&s.notes?`<br>📝 ${esc(s.notes)}`:''}
+    ${m.conflit?`<div class="alert ko" style="margin:8px 0 0"><span>⚠️</span><div>${esc(m.conflit)}</div></div>`:''}</div>
+    <textarea data-note="${esc(m.reservation_id)}" placeholder="Note (linge manquant, casse, produit à racheter…)">${esc(m.note)}</textarea>
+    <div class="row2">${fait?`<button class="btn ghost sm" data-fait="${esc(m.reservation_id)}" data-v="à faire">Annuler « fait »</button>`
+      :`<button class="btn ok" data-fait="${esc(m.reservation_id)}" data-v="fait">✓ Ménage fait</button>`}</div></div>`;
+}
+function majMenage(id, p, discret){
+  call('menage_statut', Object.assign({reservation_id:id}, p)).then(() => { if (discret) toast('Note enregistrée','ok'); else chargerMenages(); }).catch(erreur);
+}
+
+/* ═══════════════════ Réservations ═══════════════════ */
+$('res-annee').onchange = $('res-bien').onchange = () => chargerResas();
+$('res-new').onclick = () => editerResa(null);
+function chargerResas(){
+  call('reservations', {annee:$('res-annee').value}).then(liste => {
+    const fb=$('res-bien').value;
+    const l = liste.filter(r=>!fb||r.bien_id===fb).sort((a,b)=>a.arrivee<b.arrivee?1:-1);
+    const m = voitMontants();
+    const tot = l.filter(r=>r.statut!=='annulée').reduce((s,r)=>s+(Number(r.montant)||0),0);
+    const nuits = l.filter(r=>r.statut!=='annulée').reduce((s,r)=>s+(Number(r.nuits)||0),0);
+    $('res-tbl').innerHTML = `<thead><tr><th>Bien</th><th>Voyageur</th><th>Arrivée</th><th class="hide-m">Départ</th><th class="n">Nuits</th><th class="n hide-m">Pers.</th>${m?'<th class="n">Montant</th>':''}<th>État</th></tr></thead>
+      <tbody>${l.map(r=>`<tr class="click" data-id="${esc(r.id)}"><td>${pastille(r.bien_id)}</td><td>${esc(r.voyageur||r.code||'—')}<div class="small muted">${esc(r.source)}</div></td>
+      <td>${esc(fd(r.arrivee))}</td><td class="hide-m">${esc(fd(r.depart))}</td><td class="n">${esc(r.nuits)}</td><td class="n hide-m">${esc(r.voyageurs||'')}</td>
+      ${m?`<td class="n">${r.montant!==''&&r.montant!=null?eur(r.montant):'<span class="badge acc">à saisir</span>'}</td>`:''}
+      <td>${r.statut==='annulée'?'<span class="badge ko">annulée</span>':'<span class="badge ok">confirmée</span>'}</td></tr>`).join('') || `<tr><td colspan="8" class="empty">Aucune réservation.</td></tr>`}</tbody>
+      ${l.length?`<tfoot><tr><td colspan="3">${l.length} séjour(s)</td><td class="hide-m"></td><td class="n">${nuits}</td><td class="hide-m"></td>${m?`<td class="n">${eur(tot)}</td>`:''}<td></td></tr></tfoot>`:''}`;
+    $('res-tbl').querySelectorAll('tr[data-id]').forEach(tr => tr.onclick = () => {
+      const r=l.find(x=>x.id===tr.dataset.id); peut('admin','gestionnaire') ? editerResa(r) : ficheResa(r);
+    });
+  }).catch(erreur);
+}
+function editerResa(r){
+  const nouveau=!r, manuel = !r || r.source==='manuel';
+  r = r || {bien_id:S.biens[0]&&S.biens[0].id, arrivee:'', depart:'', voyageur:'', voyageurs:'', montant:'', notes:'', statut:'confirmée'};
+  modal(nouveau?'Nouvelle réservation (hors Airbnb)':'Réservation '+(r.code||''), `
+    ${!manuel?`<div class="alert info"><span>ℹ️</span><div>Réservation importée d'Airbnb : les dates se mettent à jour toutes seules. Vous pouvez compléter le montant, le nombre de personnes et les notes.</div></div>`:''}
+    <div class="form">
+      <div class="f full"><label>Bien</label><select id="er-bien" ${manuel?'':'disabled'}>${S.biens.map(b=>`<option value="${esc(b.id)}"${b.id===r.bien_id?' selected':''}>${esc(b.nom)}</option>`).join('')}</select></div>
+      <div class="f"><label>Arrivée</label><input type="date" id="er-arr" value="${esc(r.arrivee)}" ${manuel?'':'disabled'}></div>
+      <div class="f"><label>Départ</label><input type="date" id="er-dep" value="${esc(r.depart)}" ${manuel?'':'disabled'}></div>
+      <div class="f"><label>Nom du voyageur</label><input type="text" id="er-voy" value="${esc(r.voyageur)}"></div>
+      <div class="f"><label>Nombre de personnes</label><input type="number" id="er-nb" min="0" value="${esc(r.voyageurs)}"></div>
+      <div class="f"><label>Montant net versé (€)</label><input type="number" id="er-mt" step="0.01" min="0" inputmode="decimal" value="${esc(r.montant)}"><span class="hint">Ce que vous touchez réellement (après frais Airbnb)</span></div>
+      ${manuel?`<div class="f"><label>Référence / plateforme</label><input type="text" id="er-code" value="${esc(r.code||'')}" placeholder="ex. Booking 12345, direct…"></div>`:''}
+      <div class="f"><label>État</label><select id="er-st"><option value="confirmée"${r.statut!=='annulée'?' selected':''}>Confirmée</option><option value="annulée"${r.statut==='annulée'?' selected':''}>Annulée</option></select></div>
+      <div class="f full"><label>Notes (visibles par la personne du ménage)</label><textarea id="er-notes" placeholder="ex. lit bébé, arrivée tardive…">${esc(r.notes)}</textarea></div>
+    </div>
+    <div id="er-check"></div>
+    <div class="actions"><button class="btn" id="er-save">Enregistrer</button>${!nouveau&&manuel?'<button class="btn ko" id="er-del">Supprimer</button>':''}<button class="btn ghost" data-close>Annuler</button></div>`);
+  if (manuel) {
+    const verif = () => { const a=$('er-arr').value, d=$('er-dep').value; if(!a||!d||d<=a) { $('er-check').innerHTML=''; return; }
+      call('verifier',{bien_id:$('er-bien').value, arrivee:a, depart:d}).then(v => {
+        const conf = v.conflits.filter(c=>!(c.type==='chevauchement' && r.id && c.reservations.includes(r.id)));
+        $('er-check').innerHTML = conf.length ? `<div class="alert ko" style="margin-top:10px"><div style="white-space:pre-line">${esc(conf.map(c=>'⚠️ '+fdl(c.date)+' — '+c.message).join('\n'))}</div></div>` : '';
+      }).catch(()=>{}); };
+    ['er-arr','er-dep','er-bien'].forEach(i => $(i).addEventListener('change', verif));
+    $('er-arr').addEventListener('change', () => { if (!$('er-dep').value || $('er-dep').value <= $('er-arr').value) $('er-dep').value = addD($('er-arr').value, 2); });
+  }
+  $('er-save').onclick = () => {
+    const p = { id:r.id, voyageur:$('er-voy').value, voyageurs:$('er-nb').value, montant:$('er-mt').value, notes:$('er-notes').value, statut:$('er-st').value };
+    if (manuel) Object.assign(p, {bien_id:$('er-bien').value, arrivee:$('er-arr').value, depart:$('er-dep').value, code:$('er-code').value});
+    call('reservation_save', p).then(() => { fermer(); toast('Réservation enregistrée','ok'); rafraichir(); }).catch(erreur);
+  };
+  const del=$('er-del'); if (del) del.onclick = () => { if (confirm('Supprimer cette réservation ?')) call('reservation_suppr',{id:r.id}).then(()=>{ fermer(); toast('Supprimée'); rafraichir(); }).catch(erreur); };
+}
+
+/* ═══════════════════ Revenus ═══════════════════ */
+$('rev-annee').onchange = $('rev-mode').onchange = () => chargerRevenus();
+function chargerRevenus(){
+  call('revenus', {annee:$('rev-annee').value, mode:$('rev-mode').value||undefined}).then(d => {
+    const t=d.total;
+    const sansMt = d.biens.reduce((s,b)=>s+b.mois.reduce((x,m)=>x+m.sans_montant,0),0);
+    $('rev-alerte').innerHTML = sansMt ? `<div class="alert info"><span>ℹ️</span><div><b>${sansMt} séjour(s) sans montant</b> en ${d.annee} : saisissez-les dans l'onglet Réservations pour un calcul juste.</div></div>` : '';
+    $('rev-kpis').innerHTML = `
+      <div class="kpi"><div class="l">Total encaissé</div><div class="v">${eur0(t.brut)}</div><div class="s">${t.sejours} séjours · ${t.nuits} nuits</div></div>
+      <div class="kpi"><div class="l">Part propriétaires</div><div class="v">${eur0(t.proprio)}</div><div class="s">avant leurs dépenses</div></div>
+      <div class="kpi acc"><div class="l">Ma part</div><div class="v">${eur0(t.moi)}</div><div class="s">avant dépenses</div></div>
+      <div class="kpi"><div class="l">Mes dépenses</div><div class="v">${eur0(t.dep_moi + (t.dep_generales||0))}</div><div class="s">justificatifs</div></div>
+      <div class="kpi acc"><div class="l">Mon net</div><div class="v" style="color:${t.net_moi<0?'var(--ko)':'inherit'}">${eur0(t.net_moi)}</div><div class="s">ma part − mes dépenses</div></div>`;
+    $('rev-biens').innerHTML = d.biens.map(b => `<div class="card">
+      <div class="card-title"><span style="color:var(--txt);font-size:14px;text-transform:none;letter-spacing:0"><span class="dot" style="background:${esc(b.couleur)}"></span>${esc(b.nom)}</span>
+      <span class="badge info" style="text-transform:none;letter-spacing:0">${esc(b.regle)}</span></div>
+      <div class="tbl-wrap"><table><thead><tr><th>Mois</th><th class="n">Séjours</th><th class="n hide-m">Nuits</th><th class="n">Encaissé</th><th class="n">${esc(b.proprietaire||'Propriétaire')}</th><th class="n">Ma part</th><th class="n hide-m">Dépenses</th><th class="n">Mon net</th></tr></thead>
+      <tbody>${b.mois.map((m,i)=> (m.brut||m.sejours||m.dep_moi||m.dep_proprio) ? `<tr><td>${MOIS[i]}${m.sans_montant?` <span class="badge acc">${m.sans_montant} €?</span>`:''}</td><td class="n">${m.sejours}</td><td class="n hide-m">${m.nuits}</td>
+        <td class="n">${eur(m.brut)}</td><td class="n">${eur(m.proprio)}</td><td class="n"><b>${eur(m.moi)}</b></td><td class="n hide-m">${m.dep_moi?'− '+eur(m.dep_moi):''}</td><td class="n">${eur(m.net_moi)}</td></tr>` : '').join('') || '<tr><td colspan="8" class="empty">Aucune donnée pour cette année.</td></tr>'}</tbody>
+      <tfoot><tr><td>Total</td><td class="n">${b.total.sejours}</td><td class="n hide-m">${b.total.nuits}</td><td class="n">${eur(b.total.brut)}</td><td class="n">${eur(b.total.proprio)}</td><td class="n">${eur(b.total.moi)}</td><td class="n hide-m">${b.total.dep_moi?'− '+eur(b.total.dep_moi):''}</td><td class="n">${eur(b.total.net_moi)}</td></tr></tfoot></table></div>
+      ${b.total.dep_proprio?`<p class="small muted" style="margin-top:6px">Dépenses à la charge du propriétaire : ${eur(b.total.dep_proprio)} → net propriétaire ${eur(b.total.net_proprio)}</p>`:''}
+    </div>`).join('') + (t.dep_generales ? `<p class="small muted">Dépenses générales (non rattachées à un bien) : ${eur(t.dep_generales)}, déduites de « Mon net ».</p>` : '');
+  }).catch(erreur);
+}
+
+/* ═══════════════════ Justificatifs ═══════════════════ */
+['up-cam','up-file'].forEach(id => $(id).onchange = e => { const f=e.target.files[0]; e.target.value=''; if (f) preparerFichier(f); });
+function preparerFichier(f){
+  const pdf = f.type==='application/pdf';
+  if (f.size > 20*1024*1024) return toast('Fichier trop lourd (20 Mo maximum).','ko');
+  const fin = (data, mime, apercu) => {
+    S.upload = {data, mime, nom:f.name};
+    $('up-start').hidden=true; $('up-form').hidden=false;
+    $('up-prev').hidden = !apercu; if (apercu) $('up-prev').src = apercu;
+    $('up-pdf').hidden = !pdf; $('up-pdf').textContent = '📄 '+f.name;
+    $('up-date').value = today(); $('up-montant').value=''; $('up-four').value=''; $('up-desc').value='';
+    $('up-type').value = pdf ? 'facture' : 'ticket';
+    $('up-montant').focus();
+  };
+  const rd = new FileReader();
+  if (pdf) { rd.onload = () => fin(rd.result.split(',')[1], 'application/pdf', null); rd.readAsDataURL(f); return; }
+  rd.onload = () => {
+    const img = new Image();
+    img.onload = () => {   // compression : 1800 px max, JPEG 80 %
+      const k = Math.min(1, 1800/Math.max(img.width, img.height));
+      const c = document.createElement('canvas'); c.width=Math.round(img.width*k); c.height=Math.round(img.height*k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      const url = c.toDataURL('image/jpeg', 0.8);
+      fin(url.split(',')[1], 'image/jpeg', url);
+    };
+    img.onerror = () => toast('Image illisible.','ko');
+    img.src = rd.result;
+  };
+  rd.readAsDataURL(f);
+}
+$('up-cancel').onclick = () => { S.upload=null; $('up-form').hidden=true; $('up-start').hidden=false; };
+$('up-save').onclick = () => {
+  if (!S.upload) return;
+  const b=$('up-save'); b.disabled=true; b.textContent='Envoi…';
+  call('document_upload', Object.assign({}, S.upload, {
+    date:$('up-date').value, montant:$('up-montant').value, bien_id:$('up-bien').value, type:$('up-type').value,
+    categorie:$('up-cat').value, fournisseur:$('up-four').value, imputation:$('up-imp').value, description:$('up-desc').value
+  })).then(() => { toast('Justificatif enregistré ✓','ok'); $('up-cancel').onclick(); chargerDocs(); })
+    .catch(erreur).finally(()=>{ b.disabled=false; b.textContent='Enregistrer'; });
+};
+$('doc-annee').onchange = () => chargerDocs();
+$('doc-filtre').onchange = () => dessinerDocs();
+function chargerDocs(){ call('documents', {annee:$('doc-annee').value}).then(l => { S.docs=l; S.docSel.clear(); dessinerDocs(); }).catch(erreur); }
+function dessinerDocs(){
+  const f=$('doc-filtre').value, envoi=peut('admin','gestionnaire');
+  const l = S.docs.filter(d => !f || (f==='oui' ? !!d.envoye_le : !d.envoye_le));
+  const tot = l.reduce((s,d)=>s+(Number(d.montant)||0),0);
+  $('doc-tbl').innerHTML = `<thead><tr>${envoi?'<th><input type="checkbox" id="doc-all"></th>':''}<th>Date</th><th>Catégorie</th><th class="hide-m">Bien</th><th class="n">Montant</th><th>Envoyé</th><th></th></tr></thead>
+    <tbody>${l.map(d=>`<tr>${envoi?`<td><input type="checkbox" data-sel="${esc(d.id)}"${S.docSel.has(d.id)?' checked':''}></td>`:''}
+      <td>${esc(fdl(d.date))}</td><td>${esc(d.categorie)}<div class="small muted">${esc([d.fournisseur,d.description].filter(Boolean).join(' · '))}</div></td>
+      <td class="hide-m">${d.bien_id?pastille(d.bien_id):'<span class="muted">Général</span>'}</td><td class="n">${d.montant!==''?eur(d.montant):'—'}</td>
+      <td>${d.envoye_le?`<span class="badge ok">${esc(d.envoye_le.slice(8,10)+'/'+d.envoye_le.slice(5,7))}</span>`:'<span class="badge acc">non</span>'}</td>
+      <td style="white-space:nowrap"><a class="btn ghost sm" href="${esc(d.fichier_url)}" target="_blank" rel="noopener">Voir</a> ${!peut('comptable')?`<button class="btn ghost sm" data-edit="${esc(d.id)}">✎</button>`:''}</td></tr>`).join('') || `<tr><td colspan="7" class="empty">Aucun justificatif.</td></tr>`}</tbody>
+    ${l.length?`<tfoot><tr>${envoi?'<td></td>':''}<td colspan="2">${l.length} justificatif(s)</td><td class="hide-m"></td><td class="n">${eur(tot)}</td><td colspan="2"></td></tr></tfoot>`:''}`;
+  const maj = () => { const n=S.docSel.size; $('doc-send').disabled=!n; $('doc-send').textContent = '✉️ Envoyer au comptable'+(n?' ('+n+')':''); };
+  $('doc-tbl').querySelectorAll('[data-sel]').forEach(c => c.onchange = () => { c.checked ? S.docSel.add(c.dataset.sel) : S.docSel.delete(c.dataset.sel); maj(); });
+  const all=$('doc-all'); if (all) all.onchange = () => { l.forEach(d => all.checked ? S.docSel.add(d.id) : S.docSel.delete(d.id)); dessinerDocs(); };
+  $('doc-tbl').querySelectorAll('[data-edit]').forEach(b => b.onclick = () => editerDoc(S.docs.find(d=>d.id===b.dataset.edit)));
+  maj();
+}
+$('doc-send').onclick = () => {
+  const ids=[...S.docSel]; if (!ids.length) return;
+  const deja = S.docs.filter(d=>ids.includes(d.id) && d.envoye_le).length;
+  if (!confirm(`Envoyer ${ids.length} justificatif(s) au comptable par email ?${deja?`\n(${deja} déjà envoyé(s) auparavant)`:''}`)) return;
+  call('envoyer_comptable', {ids}).then(r => { toast(`${r.envoyes} justificatif(s) envoyé(s) ✓`,'ok'); chargerDocs(); }).catch(erreur);
+};
+function editerDoc(d){
+  modal('Justificatif', `<div class="form">
+    <div class="f"><label>Date</label><input type="date" id="ed-date" value="${esc(d.date)}"></div>
+    <div class="f"><label>Montant TTC (€)</label><input type="number" step="0.01" id="ed-mt" value="${esc(d.montant)}"></div>
+    <div class="f"><label>Bien</label><select id="ed-bien">${[...S.biens.map(b=>[b.id,b.nom]),['','Général']].map(([v,l])=>`<option value="${esc(v)}"${v===d.bien_id?' selected':''}>${esc(l)}</option>`).join('')}</select></div>
+    <div class="f"><label>Catégorie</label><select id="ed-cat">${S.categories.map(c=>`<option${c===d.categorie?' selected':''}>${esc(c)}</option>`).join('')}</select></div>
+    <div class="f"><label>Fournisseur</label><input type="text" id="ed-four" value="${esc(d.fournisseur)}"></div>
+    ${peut('admin','gestionnaire')?`<div class="f"><label>À la charge de</label><select id="ed-imp">${[['moi','Moi'],['proprietaire','Propriétaire'],['partage','Partagé 50/50']].map(([v,l])=>`<option value="${v}"${v===d.imputation?' selected':''}>${l}</option>`).join('')}</select></div>`:''}
+    <div class="f full"><label>Note</label><input type="text" id="ed-desc" value="${esc(d.description)}"></div></div>
+    <div class="actions"><button class="btn" id="ed-save">Enregistrer</button><button class="btn ko" id="ed-del">Supprimer</button><button class="btn ghost" data-close>Annuler</button></div>`);
+  $('ed-save').onclick = () => call('document_save', {id:d.id, date:$('ed-date').value, montant:$('ed-mt').value, bien_id:$('ed-bien').value,
+    categorie:$('ed-cat').value, fournisseur:$('ed-four').value, imputation:$('ed-imp')?$('ed-imp').value:undefined, description:$('ed-desc').value})
+    .then(()=>{ fermer(); toast('Enregistré','ok'); chargerDocs(); }).catch(erreur);
+  $('ed-del').onclick = () => { if (confirm('Supprimer ce justificatif (le fichier part à la corbeille Drive) ?')) call('document_suppr',{id:d.id}).then(()=>{ fermer(); chargerDocs(); }).catch(erreur); };
+}
+
+/* ═══════════════════ Réglages ═══════════════════ */
+const LIB_PARAMS = { nom_app:'Nom de l\'application', email_alertes:'Email des alertes', email_comptable:'Email du comptable',
+  regle_2_departs:'Alerte 2 départs le même jour', regle_2_arrivees:'Alerte 2 arrivées le même jour', ignorer_blocages:'Ignorer les dates bloquées',
+  repartition_revenus:'Comptage des revenus', rappel_menage:'Rappel ménage la veille (18h)' };
+const CHOIX_PARAMS = { regle_2_departs:[['oui','Oui'],['non','Non']], regle_2_arrivees:[['oui','Oui'],['non','Non']], ignorer_blocages:[['oui','Oui'],['non','Non']],
+  rappel_menage:[['oui','Oui'],['non','Non']], repartition_revenus:[['arrivee','Au mois d\'arrivée'],['nuits','Au prorata des nuits']] };
+function chargerReglages(){
+  call('reglages').then(d => {
+    S.reg=d;
+    $('reg-biens').innerHTML = `<thead><tr><th>Bien</th><th class="hide-m">Groupe ménage</th><th>Calendrier Airbnb</th><th>Partage des revenus</th><th></th></tr></thead><tbody>${d.biens.map(b=>`<tr class="click" data-b="${esc(b.id)}">
+      <td><span class="dot" style="background:${esc(b.couleur)}"></span><b>${esc(b.nom)}</b> <span class="small muted">${esc(b.id)}</span>${b.actif==='non'?' <span class="badge">inactif</span>':''}</td>
+      <td class="hide-m">${esc(b.groupe_menage||'—')}</td><td>${b.ical_urls?'<span class="badge ok">relié</span>':'<span class="badge ko">à renseigner</span>'}</td>
+      <td class="small">${esc(libRegle(b))}</td><td>✎</td></tr>`).join('')}</tbody>`;
+    $('reg-biens').querySelectorAll('[data-b]').forEach(tr => tr.onclick = () => editerBien(d.biens.find(b=>b.id===tr.dataset.b)));
+    $('reg-users').innerHTML = `<thead><tr><th>Personne</th><th>Rôle</th><th class="hide-m">Biens</th><th class="hide-m">Dernière connexion</th><th></th></tr></thead><tbody>${d.utilisateurs.map(u=>`<tr class="click" data-u="${esc(u.identifiant)}">
+      <td><b>${esc(u.nom||u.identifiant)}</b><div class="small muted">${esc(u.identifiant)}${u.email?' · '+esc(u.email):''}</div></td><td><span class="badge info">${esc(u.role_label)}</span>${u.actif==='non'?' <span class="badge ko">désactivé</span>':''}</td>
+      <td class="hide-m small">${u.biens==='*'?'Tous':esc((u.biens||'').split(',').map(x=>bienNom(x.trim())).join(', '))}</td><td class="hide-m small">${esc(u.derniere_connexion||'jamais')}</td><td>✎</td></tr>`).join('')}</tbody>`;
+    $('reg-users').querySelectorAll('[data-u]').forEach(tr => tr.onclick = () => editerUser(d.utilisateurs.find(u=>u.identifiant===tr.dataset.u)));
+    $('reg-params').innerHTML = d.parametres.map(p => `<div class="f${['email_alertes','email_comptable'].includes(p.cle)?' full':''}"><label>${esc(LIB_PARAMS[p.cle]||p.cle)}</label>
+      ${CHOIX_PARAMS[p.cle] ? `<select data-p="${esc(p.cle)}">${CHOIX_PARAMS[p.cle].map(([v,l])=>`<option value="${v}"${v===p.valeur?' selected':''}>${l}</option>`).join('')}</select>`
+        : `<input type="text" data-p="${esc(p.cle)}" value="${esc(p.valeur)}">`}<span class="hint">${esc(p.description)}</span></div>`).join('');
+    $('reg-liens').innerHTML = `<p>📊 <a href="${esc(d.liens.base)}" target="_blank" rel="noopener">Ouvrir la Google Sheet (base de données)</a></p>
+      ${d.liens.dossier?`<p style="margin-top:6px">📁 <a href="${esc(d.liens.dossier)}" target="_blank" rel="noopener">Dossier Drive des justificatifs</a> — vous pouvez le partager avec votre comptable.</p>`:''}`;
+  }).catch(erreur);
+}
+const bienNom = id => { const b=(S.reg?S.reg.biens:S.biens).find(x=>x.id===id); return b?b.nom:id; };
+function libRegle(b){ const v=Number(b.regle_valeur)||0, base={mois:'/mois',reservation:'/séjour',annee:'/an'}[b.regle_base||'mois'];
+  return {seuil:`${v} € ${base} au propriétaire, le reste pour moi`, pourcentage:`${v} % pour moi`, proprietaire:'100 % propriétaire'}[b.regle_type] || '100 % pour moi'; }
+$('reg-params-save').onclick = () => { const p={}; document.querySelectorAll('[data-p]').forEach(i=>p[i.dataset.p]=i.value);
+  call('parametres_save', p).then(()=>toast('Paramètres enregistrés','ok')).catch(erreur); };
+$('reg-bien-new').onclick = () => editerBien(null);
+$('reg-user-new').onclick = () => editerUser(null);
+
+function editerBien(b){
+  const nouveau=!b; b = b || {id:'', nom:'', ville:'', groupe_menage:'', ical_urls:'', couleur:'#8E6CC9', regle_type:'total', regle_valeur:0, regle_base:'mois', proprietaire:'', heure_arrivee:'16:00', heure_depart:'11:00', actif:'oui'};
+  modal(nouveau?'Nouveau bien':b.nom, `<div class="form">
+    <div class="f"><label>Identifiant court</label><input type="text" id="eb-id" value="${esc(b.id)}" ${nouveau?'':'disabled'} placeholder="ex. THIEL1"></div>
+    <div class="f"><label>Nom affiché</label><input type="text" id="eb-nom" value="${esc(b.nom)}"></div>
+    <div class="f"><label>Ville</label><input type="text" id="eb-ville" value="${esc(b.ville)}"></div>
+    <div class="f"><label>Couleur</label><input type="color" id="eb-coul" value="${esc(b.couleur||'#888888')}" style="height:38px;width:100%;border:1px solid var(--bd2);border-radius:6px"></div>
+    <div class="f"><label>Groupe de ménage</label><input type="text" id="eb-grp" value="${esc(b.groupe_menage)}" placeholder="ex. THIEL"><span class="hint">Même groupe = même personne de ménage, surveillés ensemble</span></div>
+    <div class="f"><label>Actif</label><select id="eb-actif"><option value="oui">Oui</option><option value="non"${b.actif==='non'?' selected':''}>Non</option></select></div>
+    <div class="f"><label>Heure d'arrivée</label><input type="time" id="eb-ha" value="${esc(b.heure_arrivee||'16:00')}"></div>
+    <div class="f"><label>Heure de départ</label><input type="time" id="eb-hd" value="${esc(b.heure_depart||'11:00')}"></div>
+    <div class="f full"><label>Lien(s) iCal du calendrier</label><textarea id="eb-ical" placeholder="https://www.airbnb.fr/calendar/ical/…ics">${esc(b.ical_urls)}</textarea>
+      <span class="hint">Airbnb → Annonces → votre logement → Disponibilités → Synchronisation des calendriers → Exporter le calendrier. Un lien par ligne (Booking possible aussi).</span></div>
+    <div class="f"><label>Partage des revenus</label><select id="eb-rt">${[['total','100 % pour moi'],['seuil','Seuil : propriétaire jusqu\'à X €'],['pourcentage','Pourcentage pour moi'],['proprietaire','100 % propriétaire']].map(([v,l])=>`<option value="${v}"${v===b.regle_type?' selected':''}>${l}</option>`).join('')}</select></div>
+    <div class="f"><label id="eb-rv-l">Valeur</label><input type="number" id="eb-rv" step="0.01" value="${esc(b.regle_valeur)}"></div>
+    <div class="f" id="eb-rb-f"><label>Seuil appliqué</label><select id="eb-rb">${[['mois','par mois'],['reservation','par séjour'],['annee','par an']].map(([v,l])=>`<option value="${v}"${v===(b.regle_base||'mois')?' selected':''}>${l}</option>`).join('')}</select></div>
+    <div class="f"><label>Nom du propriétaire</label><input type="text" id="eb-prop" value="${esc(b.proprietaire)}"></div>
+    </div><p class="small muted" id="eb-ex" style="margin-top:8px"></p>
+    <div class="actions"><button class="btn" id="eb-save">Enregistrer</button><button class="btn ghost" data-close>Annuler</button></div>`);
+  const majRegle = () => { const t=$('eb-rt').value, v=Number($('eb-rv').value)||0, base=$('eb-rb').value;
+    $('eb-rv').parentElement.hidden = !['seuil','pourcentage'].includes(t); $('eb-rb-f').hidden = t!=='seuil';
+    $('eb-rv-l').textContent = t==='seuil'?'Seuil propriétaire (€)':'Ma part (%)';
+    const ex=1000, par={mois:'sur un mois',reservation:'sur un séjour',annee:'sur l\'année'}[base];
+    $('eb-ex').textContent = t==='seuil' ? `Exemple : ${ex} € encaissés ${par} → ${Math.min(ex,v)} € pour le propriétaire, ${Math.max(0,ex-v)} € pour moi.`
+      : t==='pourcentage' ? `Exemple : 1000 € encaissés → ${v*10} € pour moi, ${1000-v*10} € pour le propriétaire.` : ''; };
+  ['eb-rt','eb-rv','eb-rb'].forEach(i=>$(i).addEventListener('input', majRegle)); majRegle();
+  $('eb-save').onclick = () => call('bien_save', {nouveau, id:$('eb-id').value, nom:$('eb-nom').value, ville:$('eb-ville').value, couleur:$('eb-coul').value,
+    groupe_menage:$('eb-grp').value, actif:$('eb-actif').value, heure_arrivee:$('eb-ha').value, heure_depart:$('eb-hd').value, ical_urls:$('eb-ical').value.trim(),
+    regle_type:$('eb-rt').value, regle_valeur:$('eb-rv').value, regle_base:$('eb-rb').value, proprietaire:$('eb-prop').value})
+    .then(()=>{ fermer(); toast('Bien enregistré','ok'); recharger(); }).catch(erreur);
+}
+function editerUser(u){
+  const nouveau=!u; u = u || {identifiant:'', nom:'', email:'', role:'menage', biens:'', actif:'oui'};
+  const sel = (u.biens||'').split(',').map(s=>s.trim());
+  modal(nouveau?'Nouvel accès':u.nom||u.identifiant, `<div class="form">
+    <div class="f"><label>Identifiant de connexion</label><input type="text" id="eu-id" value="${esc(u.identifiant)}" ${nouveau?'':'disabled'} autocapitalize="none" placeholder="ex. laetitia"></div>
+    <div class="f"><label>Nom</label><input type="text" id="eu-nom" value="${esc(u.nom)}"></div>
+    <div class="f full"><label>Email</label><input type="email" id="eu-mail" value="${esc(u.email)}"><span class="hint">Pour le rappel ménage la veille, et la réponse du comptable</span></div>
+    <div class="f"><label>Rôle</label><select id="eu-role">${Object.entries(S.roles).map(([v,l])=>`<option value="${v}"${v===u.role?' selected':''}>${esc(l)}</option>`).join('')}</select></div>
+    <div class="f"><label>Accès actif</label><select id="eu-actif"><option value="oui">Oui</option><option value="non"${u.actif==='non'?' selected':''}>Non (bloqué)</option></select></div>
+    <div class="f full"><label>Biens accessibles</label><div style="display:flex;gap:12px;flex-wrap:wrap">
+      <label class="small"><input type="checkbox" id="eu-all"${sel.includes('*')?' checked':''}> Tous</label>
+      ${S.reg.biens.map(b=>`<label class="small"><input type="checkbox" data-eb="${esc(b.id)}"${sel.includes(b.id)?' checked':''}> ${esc(b.nom)}</label>`).join('')}</div></div>
+    <div class="f full"><p class="small muted" id="eu-desc"></p></div>
+    ${nouveau?'':'<div class="f full"><label class="small"><input type="checkbox" id="eu-reinit"> Générer un nouveau mot de passe</label></div>'}
+    </div>
+    <div class="actions"><button class="btn" id="eu-save">Enregistrer</button><button class="btn ghost" data-close>Annuler</button></div>`);
+  const DESC = {admin:'Voit et règle tout.', gestionnaire:'Ses biens : réservations, montants, revenus, ménages et justificatifs.',
+    menage:'Planning des ménages et calendrier de ses biens, sans les montants. Peut ajouter ses tickets (produits…).', comptable:'Revenus et justificatifs de tous les biens, en lecture.'};
+  const md = () => $('eu-desc').textContent = DESC[$('eu-role').value] || ''; $('eu-role').onchange = md; md();
+  $('eu-save').onclick = () => {
+    const ident = $('eu-id').value.trim().toLowerCase();
+    const biens = $('eu-all').checked ? '*' : [...document.querySelectorAll('[data-eb]:checked')].map(c=>c.dataset.eb).join(',');
+    call('utilisateur_save', {nouveau, identifiant:$('eu-id').value, nom:$('eu-nom').value, email:$('eu-mail').value, role:$('eu-role').value,
+      actif:$('eu-actif').value, biens, reinit: $('eu-reinit') ? $('eu-reinit').checked : false})
+      .then(r => { fermer(); chargerReglages();
+        if (r.mdp) modal('Mot de passe', `<p>Transmettez ces informations à la personne :</p>
+          <div class="alert info" style="margin-top:10px;font-size:15px"><div>Adresse : <b>${esc(S.params.url_app||'')}</b><br>Identifiant : <b>${esc(ident)}</b></div></div>
+          <div class="alert ok" style="font-size:18px;justify-content:center"><b>${esc(r.mdp)}</b></div>
+          <p class="small muted">Ce mot de passe ne sera plus affiché. La personne pourra le changer depuis 👤.</p>
+          <div class="actions"><button class="btn" data-close>J'ai noté</button></div>`);
+        else toast('Accès enregistré','ok');
+      }).catch(erreur);
+  };
+}
+function recharger(){ call('init').then(d=>{ S.biens=d.biens; preparer(); rafraichir(); }).catch(erreur); }
+
+/* ═══════════════════ Mon compte ═══════════════════ */
+$('btn-compte').onclick = () => {
+  modal('Mon compte', `<p><b>${esc(S.user.nom||S.user.identifiant)}</b> — ${esc(S.user.role_label)}</p>
+    <div class="form" style="margin-top:12px">
+      <div class="f full"><label>Mot de passe actuel</label><input type="password" id="mc-a" autocomplete="current-password"></div>
+      <div class="f"><label>Nouveau mot de passe</label><input type="password" id="mc-n" autocomplete="new-password"></div>
+      <div class="f"><label>Confirmer</label><input type="password" id="mc-c" autocomplete="new-password"></div></div>
+    <div class="actions"><button class="btn" id="mc-save">Changer le mot de passe</button><button class="btn ko" id="mc-out">Se déconnecter</button><button class="btn ghost" data-close>Fermer</button></div>`);
+  $('mc-save').onclick = () => { if ($('mc-n').value !== $('mc-c').value) return toast('Les deux mots de passe ne correspondent pas.','ko');
+    call('mon_mdp', {ancien:$('mc-a').value, nouveau:$('mc-n').value}).then(()=>{ fermer(); toast('Mot de passe changé ✓','ok'); }).catch(erreur); };
+  $('mc-out').onclick = () => { fermer(); deconnecter(); };
+};
+
+/* ═══════════════════ Fenêtre modale ═══════════════════ */
+function modal(titre, html){
+  $('modal-root').innerHTML = `<div class="modal-bg"><div class="modal" role="dialog" aria-modal="true"><h2>${esc(titre)}<button class="x" data-close aria-label="Fermer">×</button></h2>${html}</div></div>`;
+  const bg = $('modal-root').firstChild;
+  bg.addEventListener('click', e => { if (e.target===bg || e.target.closest('[data-close]')) fermer(); });
+}
+function fermer(){ $('modal-root').innerHTML=''; }
+document.addEventListener('keydown', e => { if (e.key==='Escape') fermer(); });
+
+/* ═══════════════════ Démarrage ═══════════════════ */
+S.token = store.get('loc_token');
+if (S.token) demarrer(); else $('vue-login').hidden = false;
+</script>
+</body>
+</html>
