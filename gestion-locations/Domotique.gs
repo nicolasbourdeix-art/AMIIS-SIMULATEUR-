@@ -42,7 +42,7 @@ var PRESETS_CHAUFFAGE = {
   // Forte inertie : on préchauffe longtemps, on ne descend pas trop bas, pas de baisse pendant le ménage
   plancher:       { label: 'Plancher chauffant', prechauffage_h: 12, seuil_inoccupe_h: 72, temp_confort: 20, temp_eco: 18, temp_inoccupe: 15, duree_menage_h: 0 },
   // Radiateurs à eau sur pompe à chaleur : eau tiède, montée plus lente que l'électrique
-  pac_radiateurs: { label: 'Radiateurs sur pompe à chaleur', prechauffage_h: 3, seuil_inoccupe_h: 36, temp_confort: 20, temp_eco: 17, temp_inoccupe: 14, duree_menage_h: 2 },
+  pac_radiateurs: { label: 'Radiateurs sur pompe à chaleur', prechauffage_h: 3, seuil_inoccupe_h: 36, temp_confort: 20, temp_eco: 17, temp_inoccupe: 15, duree_menage_h: 2 },
   // Radiateurs électriques : réaction rapide, préchauffage court, on coupe vite
   radiateurs:     { label: 'Radiateurs électriques', prechauffage_h: 2, seuil_inoccupe_h: 24, temp_confort: 20, temp_eco: 16, temp_inoccupe: 12, duree_menage_h: 3 },
   pac:            { label: 'Pompe à chaleur air/air (clim réversible)', prechauffage_h: 2, seuil_inoccupe_h: 24, temp_confort: 20, temp_eco: 17, temp_inoccupe: 14, duree_menage_h: 2 },

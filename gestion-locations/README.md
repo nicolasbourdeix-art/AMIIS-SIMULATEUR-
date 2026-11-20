@@ -125,38 +125,30 @@ le ballon chauffe dès qu'**au moins un** d'entre eux en a besoin, et ne s'arrê
    ```yaml
    mes_locations_url: "https://script.google.com/macros/s/XXXX/exec?ha=CLE"
    ```
-3. Copier `home-assistant/mes_locations.yaml` dans `config/packages/` et activer les packages dans `configuration.yaml` :
-   ```yaml
-   homeassistant:
-     packages: !include_dir_named packages
-   ```
-   → crée `sensor.location_refuge_chauffage`, `sensor.location_chalet_chauffage`, `sensor.location_soustons_chauffage`,
+3. Coller la section `rest:` de `home-assistant/mes_locations.yaml` dans `configuration.yaml`. Elle crée :
+   `sensor.location_refuge_chauffage`, `sensor.location_chalet_chauffage`, `sensor.location_soustons_chauffage`,
    `sensor.location_tilh_eau_chaude`, `sensor.location_soustons_eau_chaude` et les capteurs d'occupation.
-4. Copier les deux fichiers de `home-assistant/blueprints/automation/mes_locations/` dans
-   `config/blueprints/automation/mes_locations/`, puis redémarrer Home Assistant.
-5. **Automatisations prêtes à l'emploi** : coller le contenu de `home-assistant/automations_mes_locations.yaml` à la fin
-   de `automations.yaml`, puis recharger les automatisations. Elles reprennent les entités de vos cartes :
-   - **Le refuge** : `climate.plancher_chauffant` + votre programmation (`input_number.plancher_confort` / `plancher_eco`, dérogation `plancher_manuel`) ;
-   - **Le chalet** : `climate.radiateurs_salon` + votre programmation (`radiateurs_confort` / `radiateurs_eco`, dérogation `radiateurs_manuel`) ;
-   - **Soustons** : `climate.thermostat` et `climate.thermostat_chambre`, réglés directement ;
-   - **Eau chaude de Tilh** : votre gestion actuelle est conservée (charge de nuit, solaire, légionelle). L'application appuie sur
-     « Eau chaude maintenant » au début de chaque relance avant une arrivée, coupe la résistance automatique quand plus personne
-     n'est là (et la rallume ensuite), et tient à jour `input_boolean.location_eau_chaude_absence`.
-
-   Fonctionnement avec votre programmation : pendant un séjour, les températures confort / éco de vos plannings prennent les
-   valeurs réglées dans l'application (Réglages → Chauffage & eau chaude) et vos plages horaires s'appliquent normalement.
-   Logement vide : confort = éco = température de préchauffage, d'éco ou d'inoccupation, appliquée tout de suite.
-   L'interrupteur « Programmation active » (commun aux deux circuits) n'est jamais touché.
-
-   Pour aller plus loin sur l'eau chaude : vos automatisations de charge peuvent ajouter la condition
-   « `input_boolean.location_eau_chaude_absence` est éteint » pour ne pas chauffer le ballon quand personne n'est attendu.
+4. **Tilh** — dans `configuration.yaml`, remplacer toute la section `automation programmation_pac:` par celle de
+   `home-assistant/tilh_programmation_pac.yaml` (vos automatisations, avec quelques lignes ajoutées, marquées « # Mes Locations ») :
+   - **séjour en cours** (ou application injoignable) : votre planning s'applique tel quel, avec vos températures confort / éco ;
+   - **logement vide** : préchauffage avant l'arrivée → votre température **confort** ; arrivée proche ou ménage → votre **éco** ;
+     vide pour longtemps → la température « inoccupé » réglée dans l'application (15 °C minimum pour le chalet, limite de son thermostat) ;
+     une dérogation manuelle est annulée quand l'état de la location change ;
+   - **eau chaude** : relance prioritaire 8 h avant chaque arrivée (à 60 °C si le dernier passage à 60 °C date de plus de 7 jours,
+     sinon à votre température « nuit couvert ») ; **aucune charge** quand personne n'est là ni attendu ; résistance d'appoint du matin
+     et cycle anti-légionelle du samedi sautés pendant l'absence. Le reste (solaire, heures creuses, priorité au chauffage) est inchangé.
+   - L'interrupteur « Programmation active » garde son rôle : s'il est coupé, rien ne bouge.
+5. **Soustons** — copier `home-assistant/blueprints/automation/mes_locations/chauffage.yaml` dans
+   `config/blueprints/automation/mes_locations/`, puis coller `home-assistant/automations_mes_locations.yaml` à la fin de
+   `automations.yaml` : les thermostats `climate.thermostat` et `climate.thermostat_chambre` sont réglés directement.
+6. Redémarrer Home Assistant (Outils de développement → Vérifier la configuration, puis Redémarrer).
 
 Bon à savoir :
-- La consigne de chauffage n'est envoyée **qu'au moment où elle change** : les voyageurs peuvent régler le thermostat pendant leur séjour.
-- Laissez actif le cycle anti-légionelle de la pompe à chaleur s'il existe ; la relance à 60 °C avant chaque arrivée va dans le même sens.
-- Si l'appli ne répond pas (coupure internet), Home Assistant ne change rien.
+- Pour Tilh, ce sont **vos** températures confort / éco qui comptent ; dans l'application, seuls les horaires (préchauffage,
+  seuil éco, durée du ménage, relance d'eau chaude) et la température « inoccupé » sont utilisés.
+- Si l'appli ne répond pas (coupure internet), tout fonctionne comme aujourd'hui.
 - Test rapide depuis un terminal : `curl -L "https://script.google.com/macros/s/XXXX/exec?ha=CLE"` doit renvoyer le JSON.
-- Facultatif : l'adresse « calendrier des séjours » s'ajoute dans Home Assistant via l'intégration **Calendrier distant** (Remote Calendar).
+- Le modèle `eau_chaude.yaml` reste disponible pour un autre ballon (interrupteur ou chauffe-eau simple).
 
 > Après une modification du code : **Déployer → Gérer les déploiements → ✎ → Version : Nouvelle version** pour que l'URL utilise le nouveau code.
 

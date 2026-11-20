@@ -1,0 +1,546 @@
+# ───────────────────────────────────────────────────────────────────────────
+# Tilh — vos automatisations « programmation_pac », complétées pour tenir compte
+# des réservations (application Mes Locations).
+#
+# À COLLER DANS configuration.yaml À LA PLACE de toute la section existante
+#   automation programmation_pac:
+#     ...
+# (jusqu'à la fin de « PAC – Consigne radiateurs envoyée à la PAC »).
+#
+# Les lignes ajoutées ou modifiées sont marquées « # Mes Locations ».
+# Principe : vos automatisations restent les seules à piloter la PAC.
+#  - Séjour en cours, ou application injoignable → votre planning, inchangé.
+#  - Logement vide : préchauffage avant l'arrivée → votre température CONFORT ;
+#    arrivée proche ou ménage → votre température ÉCO ;
+#    vide pour longtemps → température « inoccupé » réglée dans l'application.
+#  - Eau chaude : relance avant chaque arrivée (60 °C si le dernier passage à 60 °C
+#    date de plus de 7 jours), aucune charge quand personne n'est attendu,
+#    résistance d'appoint et cycle anti-légionelle sautés pendant l'absence.
+# Nécessite les capteurs du fichier mes_locations.yaml :
+#   sensor.location_refuge_chauffage, sensor.location_chalet_chauffage,
+#   sensor.location_tilh_eau_chaude
+# ───────────────────────────────────────────────────────────────────────────
+
+automation programmation_pac:
+  - id: pac_programmation_plancher
+    alias: "PAC – Programmation plancher"
+    mode: restart
+    triggers:
+      - trigger: state
+        entity_id:
+          - binary_sensor.plancher_confort_maintenant
+          - input_number.plancher_confort
+          - input_number.plancher_eco
+          - input_boolean.programmation_chauffage
+          - input_boolean.plancher_manuel
+          - sensor.location_refuge_chauffage # Mes Locations
+      - trigger: homeassistant
+        event: start
+      - trigger: time_pattern
+        minutes: "/30"
+    conditions:
+      - condition: state
+        entity_id: input_boolean.programmation_chauffage
+        state: "on"
+      # dérogation manuelle en cours : on ne touche à rien, sauf si la plage change
+      # ou si l'état de la location change (arrivée, départ, préchauffage…)  # Mes Locations
+      - condition: template
+        value_template: >-
+          {{ is_state('input_boolean.plancher_manuel', 'off')
+             or trigger.entity_id | default('') in ['binary_sensor.plancher_confort_maintenant',
+                                                    'sensor.location_refuge_chauffage'] }}
+    variables:
+      # Mes Locations : le planning s'applique pendant les séjours ; logement vide → selon les réservations
+      consigne: >-
+        {% set loc = states('sensor.location_refuge_chauffage') %}
+        {% set occupe = state_attr('sensor.location_refuge_chauffage', 'occupe') in [true, 'true', 'True'] %}
+        {% set confort = states('input_number.plancher_confort') | float %}
+        {% set eco = states('input_number.plancher_eco') | float %}
+        {% if occupe or loc not in ['confort', 'eco', 'menage', 'inoccupe'] %}
+          {{ confort if is_state('binary_sensor.plancher_confort_maintenant', 'on') else eco }}
+        {% elif loc == 'confort' %}
+          {{ confort }}
+        {% elif loc in ['eco', 'menage'] %}
+          {{ eco }}
+        {% else %}
+          {{ [state_attr('sensor.location_refuge_chauffage', 'consigne') | float(eco),
+              state_attr('climate.plancher_chauffant', 'min_temp') | float(5)] | max }}
+        {% endif %}
+    actions:
+      - if:
+          - condition: state
+            entity_id: input_boolean.plancher_manuel
+            state: "on"
+        then:
+          - action: input_boolean.turn_off
+            target:
+              entity_id: input_boolean.plancher_manuel
+      - if:
+          - condition: template
+            value_template: "{{ not is_state('climate.plancher_chauffant', 'heat') }}"
+        then:
+          - action: climate.set_hvac_mode
+            target:
+              entity_id: climate.plancher_chauffant
+            data:
+              hvac_mode: heat
+      - if:
+          - condition: template
+            value_template: "{{ state_attr('climate.plancher_chauffant', 'temperature') | float(0) != consigne | float }}"
+        then:
+          - action: climate.set_temperature
+            target:
+              entity_id: climate.plancher_chauffant
+            data:
+              temperature: "{{ consigne }}"
+
+  - id: pac_programmation_radiateurs
+    alias: "PAC – Programmation radiateurs"
+    mode: restart
+    triggers:
+      - trigger: state
+        entity_id:
+          - binary_sensor.radiateurs_confort_maintenant
+          - input_number.radiateurs_confort
+          - input_number.radiateurs_eco
+          - input_boolean.programmation_chauffage
+          - input_boolean.radiateurs_manuel
+          - sensor.location_chalet_chauffage # Mes Locations
+      - trigger: homeassistant
+        event: start
+      - trigger: time_pattern
+        minutes: "/30"
+    conditions:
+      - condition: state
+        entity_id: input_boolean.programmation_chauffage
+        state: "on"
+      # dérogation manuelle en cours : on ne touche à rien, sauf si la plage change
+      # ou si l'état de la location change  # Mes Locations
+      - condition: template
+        value_template: >-
+          {{ is_state('input_boolean.radiateurs_manuel', 'off')
+             or trigger.entity_id | default('') in ['binary_sensor.radiateurs_confort_maintenant',
+                                                    'sensor.location_chalet_chauffage'] }}
+    variables:
+      # Mes Locations : le planning s'applique pendant les séjours ; logement vide → selon les réservations
+      # (la consigne ne descend jamais sous le minimum du thermostat, 15 °C pour le chalet)
+      consigne: >-
+        {% set loc = states('sensor.location_chalet_chauffage') %}
+        {% set occupe = state_attr('sensor.location_chalet_chauffage', 'occupe') in [true, 'true', 'True'] %}
+        {% set confort = states('input_number.radiateurs_confort') | float %}
+        {% set eco = states('input_number.radiateurs_eco') | float %}
+        {% set mini = state_attr('climate.radiateurs_salon', 'min_temp') | float(15) %}
+        {% if occupe or loc not in ['confort', 'eco', 'menage', 'inoccupe'] %}
+          {% set v = confort if is_state('binary_sensor.radiateurs_confort_maintenant', 'on') else eco %}
+        {% elif loc == 'confort' %}
+          {% set v = confort %}
+        {% elif loc in ['eco', 'menage'] %}
+          {% set v = eco %}
+        {% else %}
+          {% set v = state_attr('sensor.location_chalet_chauffage', 'consigne') | float(eco) %}
+        {% endif %}
+        {{ [v, mini] | max }}
+    actions:
+      - if:
+          - condition: state
+            entity_id: input_boolean.radiateurs_manuel
+            state: "on"
+        then:
+          - action: input_boolean.turn_off
+            target:
+              entity_id: input_boolean.radiateurs_manuel
+      - if:
+          - condition: template
+            value_template: "{{ not is_state('climate.radiateurs_salon', 'heat') }}"
+        then:
+          - action: climate.set_hvac_mode
+            target:
+              entity_id: climate.radiateurs_salon
+            data:
+              hvac_mode: heat
+      - if:
+          - condition: template
+            value_template: "{{ state_attr('climate.radiateurs_salon', 'temperature') | float(0) != consigne | float }}"
+        then:
+          - action: climate.set_temperature
+            target:
+              entity_id: climate.radiateurs_salon
+            data:
+              temperature: "{{ consigne }}"
+
+  - id: pac_derogation_plancher
+    alias: "PAC – Dérogation manuelle plancher"
+    mode: restart
+    triggers:
+      - trigger: state
+        entity_id: input_number.plancher_manuel_consigne
+        not_from:
+          - unknown
+          - unavailable
+      - trigger: state
+        entity_id: input_boolean.plancher_manuel
+        to: "on"
+    actions:
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.plancher_manuel
+      - if:
+          - condition: template
+            value_template: "{{ not is_state('climate.plancher_chauffant', 'heat') }}"
+        then:
+          - action: climate.set_hvac_mode
+            target:
+              entity_id: climate.plancher_chauffant
+            data:
+              hvac_mode: heat
+      - action: climate.set_temperature
+        target:
+          entity_id: climate.plancher_chauffant
+        data:
+          temperature: "{{ states('input_number.plancher_manuel_consigne') | float }}"
+
+  - id: pac_derogation_radiateurs
+    alias: "PAC – Dérogation manuelle radiateurs"
+    mode: restart
+    triggers:
+      - trigger: state
+        entity_id: input_number.radiateurs_manuel_consigne
+        not_from:
+          - unknown
+          - unavailable
+      - trigger: state
+        entity_id: input_boolean.radiateurs_manuel
+        to: "on"
+    actions:
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.radiateurs_manuel
+      - if:
+          - condition: template
+            value_template: "{{ not is_state('climate.radiateurs_salon', 'heat') }}"
+        then:
+          - action: climate.set_hvac_mode
+            target:
+              entity_id: climate.radiateurs_salon
+            data:
+              hvac_mode: heat
+      - action: climate.set_temperature
+        target:
+          entity_id: climate.radiateurs_salon
+        data:
+          temperature: "{{ states('input_number.radiateurs_manuel_consigne') | float }}"
+
+  - id: pac_resistance_matin
+    alias: "Ballon – résistance d'appoint avant 6 h"
+    mode: single
+    triggers:
+      - trigger: time
+        at: "04:30:00"
+    conditions:
+      - condition: state
+        entity_id: input_boolean.resistance_ballon_auto
+        state: "on"
+      # Mes Locations : pas d'appoint si personne n'a besoin d'eau chaude
+      - condition: template
+        value_template: "{{ not is_state('sensor.location_tilh_eau_chaude', 'arret') }}"
+      - condition: template
+        value_template: "{{ states('sensor.shellyplus1pm_78ee4cc976a8_temperature_2') | is_number }}"
+      - condition: template
+        value_template: >-
+          {{ states('sensor.shellyplus1pm_78ee4cc976a8_temperature_2') | float
+             < states('input_number.resistance_seuil_matin') | float(45) }}
+    variables:
+      restant: "{{ (((today_at('06:00') - now()).total_seconds() / 60) | int) }}"
+      duree: "{{ [states('input_number.resistance_duree_max') | float(90) | int, restant | int] | min }}"
+    actions:
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.resistance_ballon_en_cours
+      - action: switch.turn_on
+        target:
+          entity_id: switch.resistance_chauffe_eau_switch
+      - wait_template: >-
+          {{ not (states('sensor.shellyplus1pm_78ee4cc976a8_temperature_2') | is_number)
+             or states('sensor.shellyplus1pm_78ee4cc976a8_temperature_2') | float >= states('input_number.resistance_cible_matin') | float(52) }}
+        timeout:
+          minutes: "{{ duree }}"
+        continue_on_timeout: true
+      - action: switch.turn_off
+        target:
+          entity_id: switch.resistance_chauffe_eau_switch
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.resistance_ballon_en_cours
+
+  - id: pac_resistance_legionelle
+    alias: "Ballon – résistance : cycle anti-légionelle du samedi soir"
+    mode: single
+    triggers:
+      - trigger: time
+        at: "22:05:00"
+    conditions:
+      - condition: time
+        weekday:
+          - sat
+      - condition: state
+        entity_id: input_boolean.resistance_ballon_auto
+        state: "on"
+      # Mes Locations : inutile si personne n'est attendu (la relance avant l'arrivée monte à 60 °C)
+      - condition: template
+        value_template: "{{ not is_state('sensor.location_tilh_eau_chaude', 'arret') }}"
+      - condition: template
+        value_template: "{{ states('sensor.shellyplus1pm_78ee4cc976a8_temperature_2') | is_number }}"
+      - condition: template
+        value_template: >-
+          {{ (now().timestamp()
+              - (states('input_datetime.eau_chaude_derniere_legionelle') | as_timestamp(0))) >= 6 * 86400 }}
+    variables:
+      restant: "{{ (((today_at('06:00') + timedelta(days=1) - now()).total_seconds() / 60) | int) }}"
+      duree: "{{ [300, restant | int] | min }}"
+    actions:
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.resistance_ballon_en_cours
+      - action: switch.turn_on
+        target:
+          entity_id: switch.resistance_chauffe_eau_switch
+      - wait_template: >-
+          {{ not (states('sensor.shellyplus1pm_78ee4cc976a8_temperature_2') | is_number)
+             or states('sensor.shellyplus1pm_78ee4cc976a8_temperature_2') | float >= 60 }}
+        timeout:
+          minutes: "{{ duree }}"
+        continue_on_timeout: true
+      - action: switch.turn_off
+        target:
+          entity_id: switch.resistance_chauffe_eau_switch
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.resistance_ballon_en_cours
+
+  - id: pac_resistance_securite
+    alias: "Ballon – résistance : coupure de sécurité"
+    mode: single
+    triggers:
+      - trigger: homeassistant
+        event: start
+      - trigger: time
+        at: "06:00:30"
+      - trigger: state
+        entity_id: switch.resistance_chauffe_eau_switch
+        to: "on"
+        for:
+          hours: 5
+      - trigger: state
+        entity_id: sensor.shellyplus1pm_78ee4cc976a8_temperature_2
+        to:
+          - unavailable
+          - unknown
+        for:
+          minutes: 10
+    conditions:
+      - condition: state
+        entity_id: input_boolean.resistance_ballon_en_cours
+        state: "on"
+    actions:
+      - action: switch.turn_off
+        target:
+          entity_id: switch.resistance_chauffe_eau_switch
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.resistance_ballon_en_cours
+
+  - id: pac_programmation_eau_chaude
+    alias: "PAC – Eau chaude (solaire + heures creuses)"
+    mode: restart
+    triggers:
+      - trigger: time_pattern
+        minutes: "/5"
+      - trigger: state
+        entity_id:
+          - input_number.eau_chaude_minimum_jour
+          - input_number.eau_chaude_nuit_soleil
+          - input_number.eau_chaude_nuit_couvert
+          - input_number.eau_chaude_fin_charge_nuit
+          - input_select.eau_chaude_saison
+          - switch.chauffe_radiateurs
+          - input_boolean.eau_chaude_relance
+          - input_boolean.programmation_chauffage
+          - binary_sensor.ballon_sous_minimum_depuis_1h
+          - sensor.shellyplus1pm_78ee4cc976a8_temperature_2
+          - sensor.location_tilh_eau_chaude # Mes Locations
+      - trigger: homeassistant
+        event: start
+    conditions:
+      - condition: state
+        entity_id: input_boolean.programmation_chauffage
+        state: "on"
+    actions:
+      - action: weather.get_forecasts
+        target:
+          entity_id: weather.forecast_maison
+        data:
+          type: daily
+        response_variable: previsions
+        continue_on_error: true
+      - variables:
+          consigne: >-
+            {% set h = now().hour %}
+            {% set wd = now().weekday() %}
+            {% set hc = h >= 22 or h < 6 %}
+            {% set nuit_legionelle = (wd == 5 and h >= 22) or (wd == 6 and h < 6) %}
+            {% set derniere = states('input_datetime.eau_chaude_derniere_legionelle') %}
+            {% set legionelle_ok = (now().timestamp() - (derniere | as_timestamp(0))) < 7 * 86400 %}
+            {# Mes Locations : relance (avant une arrivée) / marche (séjour) / arret (personne) #}
+            {% set location = states('sensor.location_tilh_eau_chaude') %}
+            {# saison : Auto = hiver d'octobre à mars ; en hiver la PAC n'attend pas le solaire #}
+            {% set saison = states('input_select.eau_chaude_saison') %}
+            {% set hiver = saison == 'Hiver' or (saison != 'Été' and now().month in [10, 11, 12, 1, 2, 3]) %}
+            {% set beau_maintenant = state_attr('sun.sun', 'elevation') | float(0) > 15
+               and states('weather.forecast_maison') in ['sunny', 'partlycloudy'] %}
+            {% set jour_vise = (now() + timedelta(hours=3)).date() %}
+            {% set ns = namespace(demain_beau=false) %}
+            {% if previsions is defined and previsions is mapping
+                  and 'weather.forecast_maison' in previsions %}
+              {% for f in previsions['weather.forecast_maison'].forecast %}
+                {% if (as_datetime(f.datetime) | as_local).date() == jour_vise %}
+                  {% set ns.demain_beau = f.condition in ['sunny', 'partlycloudy'] %}
+                {% endif %}
+              {% endfor %}
+            {% endif %}
+            {% set t = states('sensor.shellyplus1pm_78ee4cc976a8_temperature_2') %}
+            {% set t = t | float if t | is_number
+                       else state_attr('water_heater.eau_chaude', 'current_temperature') | float(99) %}
+            {% set charge = true %}
+            {# fin de nuit : l'eau chaude a eu sa charge prioritaire, le chauffage passe avant #}
+            {% set heure = now().hour + now().minute / 60 %}
+            {% set fin_charge = states('input_number.eau_chaude_fin_charge_nuit') | float(2) %}
+            {% set chauffage_demande = is_state('switch.chauffe_radiateurs', 'on')
+               or state_attr('climate.plancher_chauffant', 'temperature') | float(0)
+                  > state_attr('climate.plancher_chauffant', 'current_temperature') | float(99) %}
+            {% if is_state('input_boolean.eau_chaude_relance', 'on') %}
+              {% set c = states('input_number.eau_chaude_nuit_couvert') | float %}
+            {% elif location == 'relance' %}
+              {# Mes Locations : voyageurs attendus dans les prochaines heures → charge prioritaire,
+                 à 60 °C si le dernier passage à 60 °C date de plus de 7 jours #}
+              {% set c = 60 if not legionelle_ok else states('input_number.eau_chaude_nuit_couvert') | float %}
+            {% elif location == 'arret' %}
+              {# Mes Locations : personne dans les logements ni attendu → pas de charge #}
+              {% set charge = false %}
+              {% set c = 10 %}
+            {% elif hc and nuit_legionelle and not legionelle_ok and is_state('input_boolean.resistance_ballon_auto', 'off')
+               and is_state('input_boolean.legionelle_par_pac', 'on') %}
+              {% set c = 60 %}
+            {% elif hc and heure < 6 and heure >= fin_charge and chauffage_demande %}
+              {% set charge = false %}
+              {% set c = states('input_number.eau_chaude_minimum_jour') | float %}
+            {% elif hc %}
+              {% set c = states('input_number.eau_chaude_nuit_soleil') | float if ns.demain_beau
+                         else states('input_number.eau_chaude_nuit_couvert') | float %}
+            {% elif not hiver and beau_maintenant and is_state('binary_sensor.ballon_sous_minimum_depuis_1h', 'off') %}
+              {% set charge = false %}
+              {% set c = 10 %}
+            {% else %}
+              {% set charge = false %}
+              {% set c = states('input_number.eau_chaude_minimum_jour') | float %}
+            {% endif %}
+            {% if charge and t < c - 2 %}
+              {{ [c + 8, 65] | min }}
+            {% else %}
+              {{ c }}
+            {% endif %}
+      - if:
+          - condition: template
+            value_template: "{{ not is_state('water_heater.eau_chaude', 'performance') }}"
+        then:
+          - action: water_heater.set_operation_mode
+            target:
+              entity_id: water_heater.eau_chaude
+            data:
+              operation_mode: performance
+      - if:
+          - condition: template
+            value_template: "{{ state_attr('water_heater.eau_chaude', 'temperature') | float(0) != consigne | float }}"
+        then:
+          - action: water_heater.set_temperature
+            target:
+              entity_id: water_heater.eau_chaude
+            data:
+              temperature: "{{ consigne | float }}"
+
+  - id: pac_eau_chaude_fin_relance
+    alias: "PAC – Eau chaude : fin de la relance"
+    mode: single
+    triggers:
+      - trigger: template
+        value_template: >-
+          {% set t = states('sensor.shellyplus1pm_78ee4cc976a8_temperature_2') %}
+          {% set t = t | float if t | is_number
+                     else state_attr('water_heater.eau_chaude', 'current_temperature') | float(0) %}
+          {{ t >= states('input_number.eau_chaude_nuit_couvert') | float(50) - 1 }}
+      - trigger: state
+        entity_id: input_boolean.eau_chaude_relance
+        to: "on"
+        for:
+          hours: 4
+    conditions:
+      - condition: state
+        entity_id: input_boolean.eau_chaude_relance
+        state: "on"
+    actions:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.eau_chaude_relance
+
+  - id: pac_eau_chaude_trace_legionelle
+    alias: "PAC – Eau chaude : mémorise le passage à 60 °C"
+    mode: single
+    triggers:
+      - trigger: template
+        value_template: >-
+          {% set t = states('sensor.shellyplus1pm_78ee4cc976a8_temperature_2') %}
+          {% set t = t | float if t | is_number
+                     else state_attr('water_heater.eau_chaude', 'current_temperature') | float(0) %}
+          {{ t >= 60 }}
+    actions:
+      - action: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.eau_chaude_derniere_legionelle
+        data:
+          timestamp: "{{ now().timestamp() }}"
+
+  - id: pac_consigne_radiateurs_vers_pac
+    alias: "PAC – Consigne radiateurs envoyée à la PAC"
+    mode: restart
+    triggers:
+      - trigger: state
+        entity_id: climate.radiateurs_salon
+        attribute: temperature
+      - trigger: state
+        entity_id: input_number.radiateurs_boost
+      - trigger: state
+        entity_id: sensor.radiateurs_consigne_pac
+      - trigger: homeassistant
+        event: start
+      - trigger: time_pattern
+        minutes: "/30"
+    conditions:
+      - condition: template
+        value_template: "{{ state_attr('climate.radiateurs_salon', 'temperature') is number }}"
+      - condition: template
+        value_template: "{{ states('input_number.radiateurs_boost') | is_number }}"
+    variables:
+      cible: >-
+        {% set v = state_attr('climate.radiateurs_salon', 'temperature') | float
+                   + states('input_number.radiateurs_boost') | float %}
+        {% set v = [[v, 5] | max, 30] | min %}
+        {{ ((v * 2) | round(0)) / 2 }}
+      actuelle: "{{ states('sensor.radiateurs_consigne_pac') | float(-1) }}"
+    actions:
+      - if:
+          - condition: template
+            value_template: "{{ actuelle | float != cible | float }}"
+        then:
+          - action: mqtt.publish
+            data:
+              topic: "home/heater/boiler/zoneA/dayTemp/set"
+              payload: "{{ cible }}"

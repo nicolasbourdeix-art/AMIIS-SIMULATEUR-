@@ -1,14 +1,12 @@
 # ───────────────────────────────────────────────────────────────
 # Mes Locations — capteurs lus depuis l'application (package Home Assistant)
 #
-# 1. Copier ce fichier dans  config/packages/mes_locations.yaml
-# 2. Dans configuration.yaml :
-#      homeassistant:
-#        packages: !include_dir_named packages
-# 3. Dans secrets.yaml, coller l'adresse affichée dans l'appli
+# 1. Coller la section « rest: » ci-dessous dans configuration.yaml
+#    (ou copier ce fichier dans config/packages/ si vous utilisez les packages).
+# 2. Dans secrets.yaml, coller l'adresse affichée dans l'appli
 #    (Réglages → Chauffage & eau chaude) :
 #      mes_locations_url: "https://script.google.com/macros/s/XXXX/exec?ha=CLE"
-# 4. Redémarrer Home Assistant.
+# 3. Redémarrer Home Assistant.
 #
 # TILH1 = Le refuge en bois rustique (plancher chauffant), TILH2 = Le petit chalet landais rustique (radiateurs).
 # Chauffage : un capteur par logement. État = mode (confort / menage / eco / inoccupe / arret),
@@ -18,13 +16,6 @@
 #   pour les deux maisons : il est en marche dès qu'une des deux en a besoin.
 # Si un identifiant a changé dans l'appli, adapter « biens.XXX » / « eau_chaude.XXX ».
 # ───────────────────────────────────────────────────────────────
-
-# Interrupteur posé par l'automatisation « eau chaude » quand personne n'a besoin d'eau chaude à Tilh.
-# Vos automatisations d'eau chaude peuvent le tester pour ne pas lancer de charge (voir README).
-input_boolean:
-  location_eau_chaude_absence:
-    name: "Locations — eau chaude en absence"
-    icon: mdi:water-boiler-off
 
 rest:
   - resource: !secret mes_locations_url
