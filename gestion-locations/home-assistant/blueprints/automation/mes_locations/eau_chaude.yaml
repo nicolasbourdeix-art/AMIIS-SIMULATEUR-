@@ -1,0 +1,156 @@
+blueprint:
+  name: Mes Locations — eau chaude selon les réservations
+  description: >
+    Pilote un ballon d'eau chaude d'après le capteur « Location … eau chaude » de l'application Mes Locations.
+    Créer une automatisation par ballon (à Tilh : un seul ballon, relié à la pompe à chaleur, pour les deux maisons).
+
+    - **Relance** (avant une arrivée) : montée à la température de relance (60 °C), quel que soit le tarif.
+
+    - **Marche** (pendant un séjour) : température « séjour ». Avec un interrupteur et un capteur d'heures creuses,
+      le ballon ne chauffe qu'en heures creuses.
+
+    - **Arrêt** (personne) : température « logement vide », ou mode arrêt / vacances du chauffe-eau.
+
+    - Vérifié toutes les 15 minutes. Si l'application ne répond pas, rien n'est modifié.
+  domain: automation
+  input:
+    capteur:
+      name: Capteur eau chaude
+      description: Le capteur « Location … eau chaude » créé par le package mes_locations.yaml
+      selector:
+        entity:
+          domain: sensor
+    chauffe_eau:
+      name: Chauffe-eau piloté par température
+      description: >
+        L'entité de la carte « Eau chaude sanitaire » : water_heater (cas le plus courant pour une pompe à chaleur),
+        climate ou number (consigne d'eau chaude). La température voulue est envoyée par l'application.
+      default: []
+      selector:
+        entity:
+          domain: [water_heater, climate, number]
+          multiple: true
+    mode_marche:
+      name: Mode du chauffe-eau quand il doit chauffer (facultatif)
+      description: Mode de fonctionnement water_heater à appliquer en relance et pendant les séjours (ex. « eco », « performance », « heat_pump »). Vide = ne pas changer le mode.
+      default: ""
+      selector: { text: {} }
+    mode_arret:
+      name: Mode du chauffe-eau quand personne n'en a besoin (facultatif)
+      description: Ex. « off », « vacation », « eco ». Vide = seulement baisser la température.
+      default: ""
+      selector: { text: {} }
+    interrupteur:
+      name: Ballon sur interrupteur (facultatif)
+      description: Prise ou contacteur d'un ballon électrique simple (marche / arrêt).
+      default: []
+      selector:
+        entity:
+          domain: [switch, input_boolean]
+          multiple: true
+    heures_creuses:
+      name: Heures creuses (facultatif, pour l'interrupteur)
+      description: Capteur binaire à « on » pendant les heures creuses ou le surplus solaire.
+      default: []
+      selector:
+        entity:
+          domain: [binary_sensor, input_boolean]
+          multiple: true
+
+mode: queued
+max: 5
+
+trigger:
+  - platform: state
+    entity_id: !input capteur
+    to: ~
+  - platform: state
+    entity_id: !input capteur
+    attribute: consigne_ecs
+  - platform: homeassistant
+    event: start
+  - platform: time_pattern
+    minutes: "/15"
+
+variables:
+  capteur: !input capteur
+  chauffe_eau: !input chauffe_eau
+  mode_marche: !input mode_marche
+  mode_arret: !input mode_arret
+  interrupteur: !input interrupteur
+  hc: !input heures_creuses
+  etat: "{{ states(capteur) }}"
+  consigne: "{{ state_attr(capteur, 'consigne_ecs') | float(0) }}"
+  besoin: "{{ etat in ['relance', 'marche'] }}"
+  hc_ok: "{{ hc | count == 0 or hc | select('is_state', 'on') | list | count > 0 }}"
+  interrupteur_on: "{{ etat == 'relance' or (etat == 'marche' and hc_ok) }}"
+  mode_voulu: "{{ mode_marche if besoin else mode_arret }}"
+
+condition:
+  - condition: template
+    value_template: "{{ etat not in ['unknown', 'unavailable', 'none', ''] and consigne > 0 }}"
+
+action:
+  - repeat:
+      for_each: "{{ chauffe_eau }}"
+      sequence:
+        - choose:
+            - conditions:
+                - condition: template
+                  value_template: "{{ repeat.item.startswith('water_heater.') }}"
+              sequence:
+                - if:
+                    - condition: template
+                      value_template: "{{ mode_voulu != '' and states(repeat.item) != mode_voulu }}"
+                  then:
+                    - service: water_heater.set_operation_mode
+                      target:
+                        entity_id: "{{ repeat.item }}"
+                      data:
+                        operation_mode: "{{ mode_voulu }}"
+                      continue_on_error: true
+                - if:
+                    - condition: template
+                      value_template: "{{ mode_voulu != 'off' and (state_attr(repeat.item, 'temperature') | float(0)) != consigne }}"
+                  then:
+                    - service: water_heater.set_temperature
+                      target:
+                        entity_id: "{{ repeat.item }}"
+                      data:
+                        temperature: "{{ consigne }}"
+                      continue_on_error: true
+            - conditions:
+                - condition: template
+                  value_template: "{{ repeat.item.startswith('climate.') }}"
+              sequence:
+                - if:
+                    - condition: template
+                      value_template: "{{ (state_attr(repeat.item, 'temperature') | float(0)) != consigne }}"
+                  then:
+                    - service: climate.set_temperature
+                      target:
+                        entity_id: "{{ repeat.item }}"
+                      data:
+                        temperature: "{{ consigne }}"
+                      continue_on_error: true
+            - conditions:
+                - condition: template
+                  value_template: "{{ repeat.item.startswith('number.') }}"
+              sequence:
+                - if:
+                    - condition: template
+                      value_template: "{{ (states(repeat.item) | float(0)) != consigne }}"
+                  then:
+                    - service: number.set_value
+                      target:
+                        entity_id: "{{ repeat.item }}"
+                      data:
+                        value: "{{ consigne }}"
+                      continue_on_error: true
+  - if:
+      - condition: template
+        value_template: "{{ interrupteur | count > 0 }}"
+    then:
+      - service: "homeassistant.turn_{{ 'on' if interrupteur_on else 'off' }}"
+        target:
+          entity_id: "{{ interrupteur }}"

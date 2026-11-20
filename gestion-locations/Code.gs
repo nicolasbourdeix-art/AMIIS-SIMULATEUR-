@@ -80,13 +80,16 @@ function installer() {
   dossierRacine_();
   cleDomotique_(false);
   if (!lire_('Domotique').length) {
-    // À vérifier dans Réglages → Chauffage & eau chaude (quel logement de Tilh a le plancher chauffant ?)
-    [['TILH1', 'plancher'], ['TILH2', 'radiateurs'], ['SOUSTONS', 'autre']].forEach(function (x) {
+    // Tilh : une pompe à chaleur pour les deux maisons (plancher chauffant d'un côté, radiateurs de l'autre)
+    // et un seul ballon d'eau chaude → même groupe eau chaude « TILH ». Soustons : radiateurs électriques.
+    // À vérifier dans Réglages → Chauffage & eau chaude (quelle maison a le plancher ?).
+    [['TILH1', 'plancher', 'TILH'], ['TILH2', 'pac_radiateurs', 'TILH'], ['SOUSTONS', 'radiateurs', '']].forEach(function (x) {
       var o = { bien_id: x[0] };
       Object.keys(DOMO_DEFAUT).forEach(function (k) { o[k] = DOMO_DEFAUT[k]; });
       var pr = PRESETS_CHAUFFAGE[x[1]];
       Object.keys(pr).forEach(function (k) { if (k !== 'label') o[k] = pr[k]; });
       o.type_chauffage = x[1];
+      o.groupe_ecs = x[2];
       sauver_('Domotique', o);
     });
   }

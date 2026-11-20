@@ -1,0 +1,135 @@
+blueprint:
+  name: Mes Locations — chauffage selon les réservations
+  description: >
+    Règle le chauffage d'un logement d'après le capteur « Location … chauffage » de l'application Mes Locations.
+    Créer une automatisation par logement (ex. carte « Plancher chauffant », carte « Radiateur », Soustons).
+
+    - La consigne n'est envoyée **que lorsqu'elle change** (préchauffage, arrivée, départ…) :
+      les voyageurs peuvent régler la température pendant leur séjour sans être écrasés.
+
+    - Si l'application ne répond pas (coupure internet), rien n'est modifié.
+  domain: automation
+  input:
+    capteur:
+      name: Capteur chauffage du logement
+      description: Le capteur « Location … chauffage » créé par le package mes_locations.yaml
+      selector:
+        entity:
+          domain: sensor
+    thermostats:
+      name: Thermostat(s)
+      description: >
+        Entités climate du logement : zone plancher chauffant ou zone radiateurs de la pompe à chaleur,
+        boîtiers des radiateurs électriques… (celles de la carte du tableau de bord)
+      default: []
+      selector:
+        entity:
+          domain: climate
+          multiple: true
+    forcer_mode_chauffage:
+      name: Forcer le mode « chauffage »
+      description: >
+        Passe le thermostat en mode chauffage (heat) avant d'envoyer la consigne. À désactiver si vos
+        thermostats n'ont pas ce mode ou fonctionnent en « auto ».
+      default: true
+      selector:
+        boolean: {}
+    fil_pilote:
+      name: Radiateurs fil pilote (facultatif)
+      description: >
+        Entités « select » de modules fil pilote. Confort → option confort ; Éco et Ménage → option éco ;
+        Inoccupé → hors-gel ; Arrêt → arrêt.
+      default: []
+      selector:
+        entity:
+          domain: select
+          multiple: true
+    option_confort:
+      name: Fil pilote — option Confort
+      default: comfort
+      selector: { text: {} }
+    option_eco:
+      name: Fil pilote — option Éco
+      default: eco
+      selector: { text: {} }
+    option_horsgel:
+      name: Fil pilote — option Hors-gel
+      default: frost_protection
+      selector: { text: {} }
+    option_arret:
+      name: Fil pilote — option Arrêt
+      default: "off"
+      selector: { text: {} }
+
+mode: queued
+max: 5
+
+trigger:
+  - platform: state
+    entity_id: !input capteur
+    to: ~
+  - platform: state
+    entity_id: !input capteur
+    attribute: consigne
+  - platform: homeassistant
+    event: start
+
+variables:
+  capteur: !input capteur
+  thermostats: !input thermostats
+  forcer: !input forcer_mode_chauffage
+  fil_pilote: !input fil_pilote
+  options_fp:
+    confort: !input option_confort
+    eco: !input option_eco
+    menage: !input option_eco
+    inoccupe: !input option_horsgel
+    arret: !input option_arret
+  mode_chauffage: "{{ states(capteur) }}"
+  consigne: "{{ state_attr(capteur, 'consigne') }}"
+
+condition:
+  - condition: template
+    value_template: "{{ mode_chauffage not in ['unknown', 'unavailable', 'none', ''] }}"
+
+action:
+  - if:
+      - condition: template
+        value_template: "{{ thermostats | count > 0 }}"
+    then:
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ mode_chauffage == 'arret' or consigne in [none, 'None', ''] }}"
+            sequence:
+              - service: climate.turn_off
+                target:
+                  entity_id: "{{ thermostats }}"
+                continue_on_error: true
+        default:
+          - if:
+              - condition: template
+                value_template: "{{ forcer }}"
+            then:
+              - service: climate.set_hvac_mode
+                target:
+                  entity_id: "{{ thermostats }}"
+                data:
+                  hvac_mode: heat
+                continue_on_error: true
+          - service: climate.set_temperature
+            target:
+              entity_id: "{{ thermostats }}"
+            data:
+              temperature: "{{ consigne | float }}"
+            continue_on_error: true
+  - if:
+      - condition: template
+        value_template: "{{ fil_pilote | count > 0 and mode_chauffage in options_fp }}"
+    then:
+      - service: select.select_option
+        target:
+          entity_id: "{{ fil_pilote }}"
+        data:
+          option: "{{ options_fp[mode_chauffage] }}"
+        continue_on_error: true

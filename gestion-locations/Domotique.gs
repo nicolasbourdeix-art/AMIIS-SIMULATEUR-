@@ -2,38 +2,51 @@
  * Domotique.gs — Consignes de chauffage et d'eau chaude (ECS) calculées à partir des réservations,
  * lues par Home Assistant (capteur REST) toutes les quelques minutes.
  *
- * Modes de chauffage :
+ * Chauffage (par logement) :
  *   confort  → séjour en cours, ou préchauffage avant une arrivée
  *   menage   → quelques heures après un départ (température éco, le temps du ménage)
  *   eco      → logement vide mais prochaine arrivée proche (on ne laisse pas refroidir les murs)
- *   inoccupe → logement vide pour un moment (température basse / hors-gel)
+ *   inoccupe → logement vide pour un moment (température basse)
  *   arret    → chauffage désactivé pour ce logement (été)
- * Eau chaude :
- *   ecs = 'on' pendant le séjour et pendant la relance avant l'arrivée, 'off' sinon.
- *   ecs_prioritaire = true pendant la relance avant l'arrivée : chauffer même hors heures creuses.
+ *
+ * Eau chaude (par « groupe eau chaude ») : un même ballon peut servir plusieurs logements
+ * (à Tilh, la pompe à chaleur produit l'eau chaude des deux maisons). Le ballon est en marche
+ * dès qu'AU MOINS UN logement du groupe en a besoin :
+ *   relance → les heures avant une arrivée : montée à la température de relance (60 °C par défaut,
+ *             ce qui assure aussi la sécurité sanitaire après une période d'arrêt), même en heures pleines
+ *   marche  → pendant un séjour
+ *   arret   → plus personne : température d'arrêt (ou mode arrêt du chauffe-eau)
  */
 
 var DOMO_DEFAUT = {
-  actif: 'oui',          // envoyer ce logement à Home Assistant
-  type_chauffage: 'autre', // plancher | radiateurs | pac | autre (sert aux valeurs conseillées)
-  chauffage: 'oui',      // 'non' = mode « arret » (été)
-  prechauffage_h: 4,     // heures de préchauffage avant l'arrivée
-  ecs_avance_h: 8,       // heures de relance du ballon avant l'arrivée
+  actif: 'oui',            // envoyer ce logement à Home Assistant
+  type_chauffage: 'autre', // clé de PRESETS_CHAUFFAGE (sert aux valeurs conseillées)
+  chauffage: 'oui',        // 'non' = mode « arret » (été)
+  prechauffage_h: 4,       // heures de préchauffage avant l'arrivée
   temp_confort: 20,
   temp_eco: 17,
   temp_inoccupe: 12,
-  seuil_inoccupe_h: 36,  // si la prochaine arrivée est à moins de X h, on reste en éco
-  duree_menage_h: 3      // heures en mode « ménage » après le départ
+  seuil_inoccupe_h: 36,    // si la prochaine arrivée est à moins de X h, on reste en éco
+  duree_menage_h: 3,       // heures en mode « ménage » après le départ
+  groupe_ecs: '',          // même valeur = même ballon (ex. TILH). Vide = ballon propre au logement
+  ecs_avance_h: 8,         // heures de relance du ballon avant l'arrivée
+  ecs_temp_relance: 60,
+  ecs_temp_marche: 52,
+  ecs_temp_arret: 40
 };
+
+var CHAMPS_TEXTE_DOMO = ['actif', 'type_chauffage', 'chauffage', 'groupe_ecs'];
 
 /** Valeurs conseillées selon le type de chauffage (appliquées depuis l'interface). */
 var PRESETS_CHAUFFAGE = {
   // Forte inertie : on préchauffe longtemps, on ne descend pas trop bas, pas de baisse pendant le ménage
-  plancher:   { label: 'Plancher chauffant', prechauffage_h: 12, seuil_inoccupe_h: 72, temp_confort: 20, temp_eco: 18, temp_inoccupe: 15, duree_menage_h: 0, ecs_avance_h: 8 },
-  // Réaction rapide : préchauffage court, on coupe vite
-  radiateurs: { label: 'Radiateurs électriques', prechauffage_h: 2, seuil_inoccupe_h: 24, temp_confort: 20, temp_eco: 16, temp_inoccupe: 12, duree_menage_h: 3, ecs_avance_h: 8 },
-  pac:        { label: 'Pompe à chaleur / clim réversible', prechauffage_h: 4, seuil_inoccupe_h: 36, temp_confort: 20, temp_eco: 17, temp_inoccupe: 14, duree_menage_h: 2, ecs_avance_h: 8 },
-  autre:      { label: 'Autre', prechauffage_h: 4, seuil_inoccupe_h: 36, temp_confort: 20, temp_eco: 17, temp_inoccupe: 12, duree_menage_h: 3, ecs_avance_h: 8 }
+  plancher:       { label: 'Plancher chauffant', prechauffage_h: 12, seuil_inoccupe_h: 72, temp_confort: 20, temp_eco: 18, temp_inoccupe: 15, duree_menage_h: 0 },
+  // Radiateurs à eau sur pompe à chaleur : eau tiède, montée plus lente que l'électrique
+  pac_radiateurs: { label: 'Radiateurs sur pompe à chaleur', prechauffage_h: 3, seuil_inoccupe_h: 36, temp_confort: 20, temp_eco: 17, temp_inoccupe: 14, duree_menage_h: 2 },
+  // Radiateurs électriques : réaction rapide, préchauffage court, on coupe vite
+  radiateurs:     { label: 'Radiateurs électriques', prechauffage_h: 2, seuil_inoccupe_h: 24, temp_confort: 20, temp_eco: 16, temp_inoccupe: 12, duree_menage_h: 3 },
+  pac:            { label: 'Pompe à chaleur air/air (clim réversible)', prechauffage_h: 2, seuil_inoccupe_h: 24, temp_confort: 20, temp_eco: 17, temp_inoccupe: 14, duree_menage_h: 2 },
+  autre:          { label: 'Autre', prechauffage_h: 4, seuil_inoccupe_h: 36, temp_confort: 20, temp_eco: 17, temp_inoccupe: 12, duree_menage_h: 3 }
 };
 
 var H_MS = 3600000;
@@ -46,8 +59,11 @@ function reglagesDomo_() {
     var o = { bien_id: b.id, nom: b.nom, _row: r._row,
               heure_arrivee: b.heure_arrivee || '16:00', heure_depart: b.heure_depart || '11:00' };
     Object.keys(DOMO_DEFAUT).forEach(function (k) {
-      o[k] = (r[k] === '' || r[k] === undefined || r[k] === null) ? DOMO_DEFAUT[k] : r[k];
+      var v = r[k];
+      o[k] = (v === '' || v === undefined || v === null) ? DOMO_DEFAUT[k] : v;
+      if (CHAMPS_TEXTE_DOMO.indexOf(k) < 0) o[k] = Number(o[k]) || 0;
     });
+    o.groupe_ecs = String(o.groupe_ecs || '').toUpperCase();
     return o;
   });
 }
@@ -64,9 +80,9 @@ function isoTZ_(d) {
 }
 
 function consigne_(mode, cfg) {
-  if (mode === 'confort') return Number(cfg.temp_confort);
-  if (mode === 'eco' || mode === 'menage') return Number(cfg.temp_eco);
-  if (mode === 'inoccupe') return Number(cfg.temp_inoccupe);
+  if (mode === 'confort') return cfg.temp_confort;
+  if (mode === 'eco' || mode === 'menage') return cfg.temp_eco;
+  if (mode === 'inoccupe') return cfg.temp_inoccupe;
   return null;
 }
 
@@ -84,8 +100,8 @@ function etatA_(t, sejours, cfg) {
     e = { mode: 'confort', ecs: 'on', ecs_prioritaire: false, raison: 'Séjour en cours' };
   } else {
     var avant = next ? (next.a - t) : Infinity;
-    var ecsOn = avant <= cfg.ecs_avance_h * H_MS;
-    e = { ecs: ecsOn ? 'on' : 'off', ecs_prioritaire: ecsOn };
+    var relance = avant <= cfg.ecs_avance_h * H_MS;
+    e = { ecs: relance ? 'on' : 'off', ecs_prioritaire: relance };
     if (avant <= cfg.prechauffage_h * H_MS) {
       e.mode = 'confort'; e.raison = 'Préchauffage avant l\'arrivée';
     } else if (prev && (t - prev.d) < cfg.duree_menage_h * H_MS) {
@@ -95,7 +111,6 @@ function etatA_(t, sejours, cfg) {
     } else {
       e.mode = 'inoccupe'; e.raison = next ? 'Logement vide jusqu\'au ' + Utilities.formatDate(next.a, TZ, 'dd/MM HH:mm') : 'Aucune réservation à venir';
     }
-    if (ecsOn) e.raison += ' · relance de l\'eau chaude';
   }
   if (cfg.chauffage === 'non') e.mode = 'arret';
   e.consigne = consigne_(e.mode, cfg);
@@ -103,58 +118,109 @@ function etatA_(t, sejours, cfg) {
   return e;
 }
 
-/** Calcule l'état actuel + les prochains changements pour chaque logement actif. */
-function etatsDomotique_(maintenant) {
-  var t = maintenant || new Date();
+/** Instants où l'état d'un logement peut changer, entre t et l'horizon. */
+function instantsChangement_(sejours, cfg, t, horizon) {
+  var out = [];
+  sejours.forEach(function (s) {
+    [s.a - cfg.prechauffage_h * H_MS, s.a - cfg.ecs_avance_h * H_MS, s.a - cfg.seuil_inoccupe_h * H_MS,
+     s.a.getTime(), s.d.getTime(), s.d.getTime() + cfg.duree_menage_h * H_MS]
+      .forEach(function (x) { if (x > t && x <= horizon) out.push(x); });
+  });
+  return out;
+}
+
+function trierUniques_(liste) {
+  var vu = {};
+  return liste.filter(function (x) { if (vu[x]) return false; vu[x] = true; return true; }).sort(function (a, b) { return a - b; });
+}
+
+/** État de l'eau chaude d'un groupe = « OU » des besoins de ses logements. */
+function etatEcsGroupe_(t, membres) {
+  var on = false, prio = false, qui = [], cfgRef = membres[0].cfg;
+  var relance = 0, marche = 0, arret = 0;
+  membres.forEach(function (m) {
+    var e = etatA_(t, m.sejours, m.cfg);
+    relance = Math.max(relance, m.cfg.ecs_temp_relance);
+    marche = Math.max(marche, m.cfg.ecs_temp_marche);
+    arret = Math.max(arret, m.cfg.ecs_temp_arret);
+    if (e.ecs === 'on') { on = true; qui.push(m.cfg.nom + (e.ecs_prioritaire ? ' (arrivée proche)' : ' (séjour)')); }
+    if (e.ecs_prioritaire) prio = true;
+  });
+  var etat = prio ? 'relance' : (on ? 'marche' : 'arret');
+  return {
+    etat: etat, ecs: on ? 'on' : 'off', ecs_prioritaire: prio,
+    consigne_ecs: etat === 'relance' ? relance : (etat === 'marche' ? marche : arret),
+    raison: on ? 'Besoin : ' + qui.join(', ') : 'Aucun voyageur ni arrivée proche',
+    _ref: cfgRef
+  };
+}
+
+/** Calcule l'état actuel + les prochains changements : chauffage par logement, eau chaude par groupe. */
+function calculDomotique_(maintenant) {
+  var t = maintenant || new Date(), tt = t.getTime(), horizon = tt + 14 * 24 * H_MS;
   var resas = resasActives_(lire_('Reservations'));
-  var out = {};
+  var biens = {}, groupes = {};
+
   reglagesDomo_().forEach(function (cfg) {
     if (cfg.actif === 'non') return;
-    ['prechauffage_h', 'ecs_avance_h', 'seuil_inoccupe_h', 'duree_menage_h'].forEach(function (k) { cfg[k] = Number(cfg[k]) || 0; });
     var sejours = resas.filter(function (r) { return r.bien_id === cfg.bien_id; }).map(function (r) {
       return { a: dateHeure_(r.arrivee, cfg.heure_arrivee), d: dateHeure_(r.depart, cfg.heure_depart), r: r };
-    }).filter(function (s) { return s.d > new Date(t.getTime() - 30 * 24 * H_MS); })
+    }).filter(function (s) { return s.d.getTime() > tt - 30 * 24 * H_MS; })
       .sort(function (x, y) { return x.a - y.a; });
 
     var e = etatA_(t, sejours, cfg);
-
-    // Instants où l'état peut changer, sur 14 jours
-    var horizon = t.getTime() + 14 * 24 * H_MS, cands = {};
-    sejours.forEach(function (s) {
-      [s.a - cfg.prechauffage_h * H_MS, s.a - cfg.ecs_avance_h * H_MS, s.a - cfg.seuil_inoccupe_h * H_MS,
-       s.a.getTime(), s.d.getTime(), s.d.getTime() + cfg.duree_menage_h * H_MS]
-        .forEach(function (x) { if (x > t.getTime() && x <= horizon) cands[x] = true; });
-    });
     var planning = [], dernier = e;
-    Object.keys(cands).map(Number).sort(function (a, b) { return a - b; }).forEach(function (x) {
+    trierUniques_(instantsChangement_(sejours, cfg, tt, horizon)).forEach(function (x) {
       var f = etatA_(new Date(x), sejours, cfg);
-      if (f.mode !== dernier.mode || f.ecs !== dernier.ecs || f.ecs_prioritaire !== dernier.ecs_prioritaire) {
-        planning.push({ quand: isoTZ_(new Date(x)), mode: f.mode, consigne: f.consigne, ecs: f.ecs, raison: f.raison });
+      if (f.mode !== dernier.mode || f.consigne !== dernier.consigne) {
+        planning.push({ quand: isoTZ_(new Date(x)), mode: f.mode, consigne: f.consigne, raison: f.raison });
         dernier = f;
       }
     });
-
     var cible = e.sejour || e.suivant;
-    out[cfg.bien_id] = {
-      nom: cfg.nom,
-      mode: e.mode,
-      consigne: e.consigne,
-      ecs: e.ecs,
-      ecs_prioritaire: e.ecs_prioritaire,
-      occupe: !!e.sejour,
-      raison: e.raison,
+    var g = cfg.groupe_ecs || cfg.bien_id;
+    biens[cfg.bien_id] = {
+      nom: cfg.nom, mode: e.mode, consigne: e.consigne, occupe: !!e.sejour, raison: e.raison,
+      groupe_ecs: g,
       voyageurs: cible && cible.r.voyageurs !== '' ? Number(cible.r.voyageurs) : null,
       arrivee: e.suivant ? isoTZ_(e.suivant.a) : null,
       depart: e.sejour ? isoTZ_(e.sejour.d) : (e.suivant ? isoTZ_(e.suivant.d) : null),
       prochain_changement: planning.length ? planning[0].quand : null,
       prochain_mode: planning.length ? planning[0].mode : null,
       prochaine_consigne: planning.length ? planning[0].consigne : null,
-      prochain_ecs: planning.length ? planning[0].ecs : null,
+      planning: planning.slice(0, 12)
+    };
+    (groupes[g] = groupes[g] || []).push({ cfg: cfg, sejours: sejours });
+  });
+
+  var ecs = {};
+  Object.keys(groupes).forEach(function (g) {
+    var membres = groupes[g];
+    var e = etatEcsGroupe_(t, membres);
+    var instants = [];
+    membres.forEach(function (m) { instants = instants.concat(instantsChangement_(m.sejours, m.cfg, tt, horizon)); });
+    var planning = [], dernier = e;
+    trierUniques_(instants).forEach(function (x) {
+      var f = etatEcsGroupe_(new Date(x), membres);
+      if (f.etat !== dernier.etat || f.consigne_ecs !== dernier.consigne_ecs) {
+        planning.push({ quand: isoTZ_(new Date(x)), etat: f.etat, consigne_ecs: f.consigne_ecs, raison: f.raison });
+        dernier = f;
+      }
+    });
+    ecs[g] = {
+      logements: membres.map(function (m) { return m.cfg.bien_id; }),
+      etat: e.etat, ecs: e.ecs, ecs_prioritaire: e.ecs_prioritaire, consigne_ecs: e.consigne_ecs, raison: e.raison,
+      prochain_changement: planning.length ? planning[0].quand : null,
+      prochain_etat: planning.length ? planning[0].etat : null,
+      prochaine_consigne_ecs: planning.length ? planning[0].consigne_ecs : null,
       planning: planning.slice(0, 12)
     };
   });
-  return out;
+  return { biens: biens, eau_chaude: ecs };
 }
+
+/** Compatibilité : état des logements seuls. */
+function etatsDomotique_(maintenant) { return calculDomotique_(maintenant).biens; }
 
 /* ── Accès Home Assistant (lecture seule, protégé par une clé) ── */
 
@@ -172,15 +238,14 @@ function memeCle_(a, b) {
   return diff === 0;
 }
 
-/** doGet(?ha=CLE[&bien=ID][&format=ics]) */
+/** doGet(?ha=CLE[&format=ics][&bien=ID]) */
 function reponseDomotique_(p) {
   if (!memeCle_(p.ha, params_().cle_domotique)) {
     return ContentService.createTextOutput(JSON.stringify({ erreur: 'clé invalide' })).setMimeType(ContentService.MimeType.JSON);
   }
   if (p.format === 'ics') return ContentService.createTextOutput(icsDomotique_(p.bien)).setMimeType(ContentService.MimeType.ICAL);
-  var etats = etatsDomotique_();
-  if (p.bien) etats = etats[p.bien] ? (function (o) { o[p.bien] = etats[p.bien]; return o; })({}) : {};
-  return ContentService.createTextOutput(JSON.stringify({ genere_le: isoTZ_(new Date()), biens: etats }))
+  var c = calculDomotique_();
+  return ContentService.createTextOutput(JSON.stringify({ genere_le: isoTZ_(new Date()), biens: c.biens, eau_chaude: c.eau_chaude }))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -206,11 +271,12 @@ function icsDomotique_(bienId) {
 /* ── Actions de l'interface (admin) ── */
 
 function actDomotique_() {
-  var url = urlApp_(), cle = cleDomotique_(false);
+  var url = urlApp_(), cle = cleDomotique_(false), c = calculDomotique_();
   return {
     reglages: reglagesDomo_().map(function (r) { delete r._row; return r; }),
     presets: PRESETS_CHAUFFAGE,
-    etats: etatsDomotique_(),
+    etats: c.biens,
+    eau_chaude: c.eau_chaude,
     url_json: url ? url + '?ha=' + cle : '',
     url_ics: url ? url + '?ha=' + cle + '&format=ics' : ''
   };
@@ -223,9 +289,12 @@ function actDomotiqueSave_(u, p) {
   Object.keys(DOMO_DEFAUT).forEach(function (k) {
     var v = p[k] !== undefined ? p[k] : cfg[k];
     if (k === 'type_chauffage') o[k] = PRESETS_CHAUFFAGE[v] ? v : 'autre';
-    else o[k] = typeof DOMO_DEFAUT[k] === 'number' ? (Number(String(v).replace(',', '.')) || 0) : (v === 'non' ? 'non' : 'oui');
+    else if (k === 'groupe_ecs') o[k] = String(v || '').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '');
+    else if (CHAMPS_TEXTE_DOMO.indexOf(k) >= 0) o[k] = v === 'non' ? 'non' : 'oui';
+    else o[k] = Number(String(v).replace(',', '.')) || 0;
   });
   if (o.temp_inoccupe < 5) throw new Error('Gardez au moins 5 °C en inoccupé (risque de gel).');
+  if (o.ecs_temp_relance < 55) throw new Error('La relance d\'eau chaude doit atteindre au moins 55 °C (sécurité sanitaire).');
   sauver_('Domotique', o);
   journal_(u.identifiant, 'domotique', cfg.bien_id);
   return true;

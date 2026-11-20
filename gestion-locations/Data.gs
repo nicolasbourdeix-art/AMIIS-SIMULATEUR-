@@ -15,8 +15,9 @@ var SCHEMA = {
   Documents: ['id', 'date', 'bien_id', 'type', 'categorie', 'fournisseur', 'montant', 'imputation', 'description',
               'fichier_id', 'fichier_url', 'ajoute_par', 'ajoute_le', 'envoye_le'],
   EmailsAirbnb: ['message_id', 'recu_le', 'code', 'montant', 'voyageurs', 'bebes', 'voyageur', 'sujet', 'applique_le'],
-  Domotique: ['bien_id', 'actif', 'type_chauffage', 'chauffage', 'prechauffage_h', 'ecs_avance_h', 'temp_confort', 'temp_eco',
-              'temp_inoccupe', 'seuil_inoccupe_h', 'duree_menage_h'],
+  Domotique: ['bien_id', 'actif', 'type_chauffage', 'chauffage', 'prechauffage_h', 'temp_confort', 'temp_eco',
+              'temp_inoccupe', 'seuil_inoccupe_h', 'duree_menage_h', 'groupe_ecs', 'ecs_avance_h',
+              'ecs_temp_relance', 'ecs_temp_marche', 'ecs_temp_arret'],
   Parametres: ['cle', 'valeur', 'description'],
   Journal: ['date', 'utilisateur', 'action', 'details']
 };
@@ -27,7 +28,8 @@ var NUMERIQUES = {
   Reservations: ['nuits', 'voyageurs', 'montant'],
   Documents: ['montant'],
   EmailsAirbnb: ['montant', 'voyageurs', 'bebes'],
-  Domotique: ['prechauffage_h', 'ecs_avance_h', 'temp_confort', 'temp_eco', 'temp_inoccupe', 'seuil_inoccupe_h', 'duree_menage_h']
+  Domotique: ['prechauffage_h', 'temp_confort', 'temp_eco', 'temp_inoccupe', 'seuil_inoccupe_h', 'duree_menage_h',
+              'ecs_avance_h', 'ecs_temp_relance', 'ecs_temp_marche', 'ecs_temp_arret']
 };
 
 var _ssCache = null;

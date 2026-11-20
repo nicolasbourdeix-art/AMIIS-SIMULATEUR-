@@ -10,10 +10,12 @@
 #      mes_locations_url: "https://script.google.com/macros/s/XXXX/exec?ha=CLE"
 # 4. Redémarrer Home Assistant.
 #
-# Un capteur par logement : son état = mode de chauffage
-#   (confort / menage / eco / inoccupe / arret), et ses attributs donnent
-#   la consigne en °C, le besoin d'eau chaude, la prochaine arrivée…
-# Si un identifiant de bien a changé dans l'appli, adapter « biens.XXX ».
+# Chauffage : un capteur par logement. État = mode (confort / menage / eco / inoccupe / arret),
+#   attribut « consigne » = température voulue.
+# Eau chaude : un capteur par ballon. État = relance / marche / arret,
+#   attribut « consigne_ecs » = température voulue. À Tilh, un seul ballon (pompe à chaleur)
+#   pour les deux maisons : il est en marche dès qu'une des deux en a besoin.
+# Si un identifiant a changé dans l'appli, adapter « biens.XXX » / « eau_chaude.XXX ».
 # ───────────────────────────────────────────────────────────────
 
 rest:
@@ -21,24 +23,36 @@ rest:
     scan_interval: 600
     timeout: 60
     sensor:
-      - name: "Location Tilh 1"
+      - name: "Location Tilh 1 chauffage"
         unique_id: mes_locations_tilh_1
         icon: mdi:home-thermometer
         value_template: "{{ value_json.biens.TILH1.mode | default('unknown') }}"
         json_attributes_path: "$.biens.TILH1"
-        json_attributes: [consigne, ecs, ecs_prioritaire, occupe, raison, voyageurs, arrivee, depart, prochain_changement, prochain_mode, prochaine_consigne, prochain_ecs, planning]
-      - name: "Location Tilh 2"
+        json_attributes: [consigne, occupe, raison, voyageurs, arrivee, depart, prochain_changement, prochain_mode, prochaine_consigne, planning]
+      - name: "Location Tilh 2 chauffage"
         unique_id: mes_locations_tilh_2
         icon: mdi:home-thermometer
         value_template: "{{ value_json.biens.TILH2.mode | default('unknown') }}"
         json_attributes_path: "$.biens.TILH2"
-        json_attributes: [consigne, ecs, ecs_prioritaire, occupe, raison, voyageurs, arrivee, depart, prochain_changement, prochain_mode, prochaine_consigne, prochain_ecs, planning]
-      - name: "Location Soustons"
+        json_attributes: [consigne, occupe, raison, voyageurs, arrivee, depart, prochain_changement, prochain_mode, prochaine_consigne, planning]
+      - name: "Location Soustons chauffage"
         unique_id: mes_locations_soustons
         icon: mdi:home-thermometer
         value_template: "{{ value_json.biens.SOUSTONS.mode | default('unknown') }}"
         json_attributes_path: "$.biens.SOUSTONS"
-        json_attributes: [consigne, ecs, ecs_prioritaire, occupe, raison, voyageurs, arrivee, depart, prochain_changement, prochain_mode, prochaine_consigne, prochain_ecs, planning]
+        json_attributes: [consigne, occupe, raison, voyageurs, arrivee, depart, prochain_changement, prochain_mode, prochaine_consigne, planning]
+      - name: "Location Tilh eau chaude"
+        unique_id: mes_locations_ecs_tilh
+        icon: mdi:water-boiler
+        value_template: "{{ value_json.eau_chaude.TILH.etat | default('unknown') }}"
+        json_attributes_path: "$.eau_chaude.TILH"
+        json_attributes: [consigne_ecs, ecs, ecs_prioritaire, raison, logements, prochain_changement, prochain_etat, prochaine_consigne_ecs, planning]
+      - name: "Location Soustons eau chaude"
+        unique_id: mes_locations_ecs_soustons
+        icon: mdi:water-boiler
+        value_template: "{{ value_json.eau_chaude.SOUSTONS.etat | default('unknown') }}"
+        json_attributes_path: "$.eau_chaude.SOUSTONS"
+        json_attributes: [consigne_ecs, ecs, ecs_prioritaire, raison, logements, prochain_changement, prochain_etat, prochaine_consigne_ecs, planning]
     binary_sensor:
       - name: "Location Tilh 1 occupée"
         unique_id: mes_locations_tilh_1_occupe

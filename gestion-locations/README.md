@@ -49,30 +49,45 @@ et remplit le montant, le nombre de voyageurs et le nom (avec une note « lit pa
 - Bouton **📧 Récupérer les montants** dans l'onglet Réservations pour lancer la lecture tout de suite (elle remonte sur 13 mois).
 
 ### Chauffage et eau chaude pilotés par les réservations (Home Assistant)
-L'application calcule en permanence, pour chaque logement, le **mode de chauffage** et le **besoin d'eau chaude** ;
-Home Assistant vient les lire toutes les 10 minutes et pilote thermostats et ballons. Rien à exposer sur internet côté maison.
+L'application calcule en permanence le **mode de chauffage de chaque logement** et le **besoin d'eau chaude de chaque ballon** ;
+Home Assistant vient les lire toutes les 10 minutes et les applique. Rien à exposer sur internet côté maison.
 
-| Mode | Quand | Consigne par défaut |
+**Installation réglée par défaut :**
+
+| Logement | Chauffage | Eau chaude |
 |---|---|---|
-| Confort | pendant le séjour, et **avant l'arrivée** (préchauffage, selon le type de chauffage) | 20 °C |
-| Ménage | quelques heures après le départ (sauf plancher chauffant) | 17 °C |
-| Éco | logement vide mais arrivée proche | 17 °C |
-| Inoccupé | logement vide plus longtemps | 12 à 15 °C |
-| Arrêt | chauffage désactivé pour ce logement (été) | — |
+| Tilh 1 | Plancher chauffant (pompe à chaleur) | Ballon commun « TILH » (pompe à chaleur) |
+| Tilh 2 | Radiateurs sur pompe à chaleur | Ballon commun « TILH » |
+| Soustons | Radiateurs électriques (boîtiers, réglage par température) | Ballon propre |
 
-Chaque logement a un **type de chauffage** avec des valeurs conseillées (bouton « Appliquer les valeurs conseillées ») :
+*Vérifiez quelle maison de Tilh a le plancher (Réglages → Chauffage & eau chaude) et inversez si besoin.*
+
+**Chauffage (par logement)**
+
+| Mode | Quand |
+|---|---|
+| Confort (20 °C) | pendant le séjour, et avant l'arrivée (préchauffage) |
+| Ménage (éco) | quelques heures après le départ (sauf plancher chauffant) |
+| Éco | logement vide mais arrivée proche |
+| Inoccupé | logement vide plus longtemps |
+| Arrêt | chauffage désactivé pour ce logement (été) |
+
+Valeurs conseillées par type (bouton « Appliquer les valeurs conseillées ») :
 
 | Type | Préchauffage | Inoccupé | Reste en éco si arrivée dans moins de | Baisse pendant le ménage |
 |---|---|---|---|---|
-| Plancher chauffant (forte inertie) | 12 h | 15 °C | 72 h | non |
+| Plancher chauffant | 12 h | 15 °C | 72 h | non |
+| Radiateurs sur pompe à chaleur | 3 h | 14 °C | 36 h | 2 h |
 | Radiateurs électriques | 2 h | 12 °C | 24 h | 3 h |
-| Pompe à chaleur | 4 h | 14 °C | 36 h | 2 h |
 
-À l'installation, Tilh 1 est réglé en plancher chauffant et Tilh 2 en radiateurs : inversez-les si besoin.
+**Eau chaude (par ballon)** — les logements qui partagent un ballon ont le même *groupe eau chaude* (ex. `TILH`) ;
+le ballon chauffe dès qu'**au moins un** d'entre eux en a besoin, et ne s'arrête que quand plus personne n'est là.
 
-**Eau chaude** : le ballon est relancé **8 h avant l'arrivée** (quel que soit le tarif), reste en service pendant le séjour
-(uniquement en heures creuses si vous donnez un capteur d'heures creuses), et **s'arrête au départ**.
-Tous ces réglages sont modifiables par logement (Réglages → Chauffage & eau chaude), avec le programme des prochains jours.
+| État | Quand | Consigne par défaut |
+|---|---|---|
+| Relance | 8 h avant une arrivée, même en heures pleines | 60 °C (assure aussi la sécurité sanitaire après un arrêt) |
+| Marche | pendant un séjour | 52 °C |
+| Arrêt | aucun voyageur ni arrivée proche | 40 °C, ou le mode arrêt / vacances du chauffe-eau |
 
 ---
 
@@ -107,19 +122,21 @@ Tous ces réglages sont modifiables par logement (Réglages → Chauffage & eau 
    homeassistant:
      packages: !include_dir_named packages
    ```
-   → crée les capteurs `sensor.location_tilh_1`, `sensor.location_tilh_2`, `sensor.location_soustons`
-   (état = mode, attributs = consigne, eau chaude, prochaine arrivée, programme…) et les capteurs d'occupation.
-4. Copier `home-assistant/blueprints/automation/mes_locations/chauffage_ecs.yaml` dans `config/blueprints/automation/mes_locations/`,
-   redémarrer Home Assistant.
-5. Paramètres → Automatisations → Modèles → **« Mes Locations — chauffage et eau chaude »** → créer **une automatisation par logement** :
-   capteur du logement, puis les entités qui figurent sur vos tableaux de bord :
-   - **Tilh « Plancher chauffant »** → le thermostat (entité climate) du plancher ;
-   - **Tilh « Radiateur »** → les radiateurs (climate) ou les modules **fil pilote** (entités select ; vérifiez le nom exact des options Confort / Éco / Hors-gel / Arrêt de vos modules) ;
-   - **Soustons** → les entités de son tableau de bord ;
-   - l'interrupteur du ballon, et éventuellement le capteur d'heures creuses.
+   → crée `sensor.location_tilh_1_chauffage`, `sensor.location_tilh_2_chauffage`, `sensor.location_soustons_chauffage`,
+   `sensor.location_tilh_eau_chaude`, `sensor.location_soustons_eau_chaude` et les capteurs d'occupation.
+4. Copier les deux fichiers de `home-assistant/blueprints/automation/mes_locations/` dans
+   `config/blueprints/automation/mes_locations/`, puis redémarrer Home Assistant.
+5. Paramètres → Automatisations → Modèles :
+   - **« Mes Locations — chauffage »** → une automatisation par logement, avec les entités de la carte correspondante :
+     - Tilh 1 → le thermostat de la carte **Plancher chauffant** (zone de la pompe à chaleur) ;
+     - Tilh 2 → le thermostat de la carte **Radiateur** ;
+     - Soustons → les thermostats des boîtiers du tableau de bord **Soustons**.
+   - **« Mes Locations — eau chaude »** → une automatisation pour Tilh avec l'entité de la carte **Eau chaude sanitaire**
+     (en général un `water_heater` de la pompe à chaleur), et une pour Soustons si son ballon est pilotable.
 
 Bon à savoir :
-- La consigne n'est envoyée **qu'au moment où elle change** : les voyageurs peuvent régler le thermostat pendant leur séjour.
+- La consigne de chauffage n'est envoyée **qu'au moment où elle change** : les voyageurs peuvent régler le thermostat pendant leur séjour.
+- Laissez actif le cycle anti-légionelle de la pompe à chaleur s'il existe ; la relance à 60 °C avant chaque arrivée va dans le même sens.
 - Si l'appli ne répond pas (coupure internet), Home Assistant ne change rien.
 - Test rapide depuis un terminal : `curl -L "https://script.google.com/macros/s/XXXX/exec?ha=CLE"` doit renvoyer le JSON.
 - Facultatif : l'adresse « calendrier des séjours » s'ajoute dans Home Assistant via l'intégration **Calendrier distant** (Remote Calendar).

@@ -374,6 +374,8 @@ tfoot td{font-weight:800;border-top:2px solid var(--bd);border-bottom:none}
       <div class="card-title">🔥 Chauffage &amp; eau chaude — Home Assistant</div>
       <p class="small muted" style="margin-bottom:10px">Les consignes sont calculées à partir des réservations. Home Assistant vient les lire toutes les 10 minutes et pilote les thermostats et les ballons.</p>
       <div class="tbl-wrap"><table id="domo-tbl"></table></div>
+      <div class="card-title" style="margin-top:16px">💧 Eau chaude</div>
+      <div class="tbl-wrap"><table id="domo-ecs"></table></div>
       <div class="form" style="margin-top:14px">
         <div class="f full"><label>Adresse à mettre dans Home Assistant (secrets.yaml)</label><input type="text" id="domo-url" readonly onclick="this.select()"><span class="hint">Cette adresse contient une clé secrète : ne la partagez pas.</span></div>
         <div class="f full"><label>Calendrier des séjours (facultatif, intégration « Calendrier distant »)</label><input type="text" id="domo-ics" readonly onclick="this.select()"></div>
@@ -859,13 +861,18 @@ const fdt = s => { const m=String(s||'').match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):
 function chargerDomotique(){
   call('domotique').then(d => {
     S.domo = d;
-    $('domo-tbl').innerHTML = `<thead><tr><th>Logement</th><th>Maintenant</th><th>Eau chaude</th><th class="hide-m">Prochain changement</th><th></th></tr></thead><tbody>${d.reglages.map(c => {
+    $('domo-tbl').innerHTML = `<thead><tr><th>Logement</th><th>Chauffage maintenant</th><th class="hide-m">Prochain changement</th><th></th></tr></thead><tbody>${d.reglages.map(c => {
       const e = d.etats[c.bien_id];
-      if (!e) return `<tr class="click" data-d="${esc(c.bien_id)}"><td>${pastille(c.bien_id)}</td><td colspan="3" class="muted">Non relié à Home Assistant</td><td>✎</td></tr>`;
-      return `<tr class="click" data-d="${esc(c.bien_id)}"><td>${pastille(c.bien_id)}<div class="small muted">${esc((d.presets[c.type_chauffage]||{}).label||'')} · ${esc(e.raison)}</div></td><td>${badgeMode(e.mode, e.consigne)}</td>
-        <td>${e.ecs==='on'?`<span class="badge acc">${e.ecs_prioritaire?'relance':'marche'}</span>`:'<span class="badge">arrêt</span>'}</td>
-        <td class="hide-m small">${e.prochain_changement?esc(fdt(e.prochain_changement))+' → '+badgeMode(e.prochain_mode, e.prochaine_consigne)+(e.prochain_ecs!==e.ecs?(e.prochain_ecs==='on'?' 💧 eau chaude':' eau chaude coupée'):''):'—'}</td><td>✎</td></tr>`;
+      if (!e) return `<tr class="click" data-d="${esc(c.bien_id)}"><td>${pastille(c.bien_id)}</td><td colspan="2" class="muted">Non relié à Home Assistant</td><td>✎</td></tr>`;
+      return `<tr class="click" data-d="${esc(c.bien_id)}"><td>${pastille(c.bien_id)}<div class="small muted">${esc((d.presets[c.type_chauffage]||{}).label||'')} · ${esc(e.raison)}</div></td>
+        <td>${badgeMode(e.mode, e.consigne)}</td>
+        <td class="hide-m small">${e.prochain_changement?esc(fdt(e.prochain_changement))+' → '+badgeMode(e.prochain_mode, e.prochaine_consigne):'—'}</td><td>✎</td></tr>`;
     }).join('')}</tbody>`;
+    const ETATS_ECS = {relance:['Relance','acc'], marche:['Marche','info'], arret:['Arrêt','']};
+    const bEcs = (et, c) => { const x=ETATS_ECS[et]||[et,'']; return `<span class="badge ${x[1]}">${esc(x[0])}${c!=null?' · '+esc(c)+' °C':''}</span>`; };
+    $('domo-ecs').innerHTML = `<thead><tr><th>Ballon</th><th>Maintenant</th><th class="hide-m">Prochain changement</th></tr></thead><tbody>${Object.entries(d.eau_chaude).map(([g,e]) =>
+      `<tr><td><b>${esc(g)}</b><div class="small muted">${e.logements.map(id=>esc(bien(id).nom)).join(' + ')} · ${esc(e.raison)}</div></td><td>${bEcs(e.etat, e.consigne_ecs)}</td>
+       <td class="hide-m small">${e.prochain_changement?esc(fdt(e.prochain_changement))+' → '+bEcs(e.prochain_etat, e.prochaine_consigne_ecs):'—'}</td></tr>`).join('') || '<tr><td colspan="3" class="empty">—</td></tr>'}</tbody>`;
     $('domo-tbl').querySelectorAll('[data-d]').forEach(tr => tr.onclick = () => editerDomo(d.reglages.find(c=>c.bien_id===tr.dataset.d)));
     $('domo-url').value = d.url_json || "(disponible une fois l'application déployée)";
     $('domo-ics').value = d.url_ics || '';
@@ -885,18 +892,24 @@ function editerDomo(c){
     ${num('ed-te','Éco (°C)',c.temp_eco,'Ménage, ou arrivée proche',0.5)}
     ${num('ed-ti','Inoccupé (°C)',c.temp_inoccupe,'Logement vide longtemps',0.5)}
     ${num('ed-ph','Préchauffage (h)',c.prechauffage_h,"Heures avant l'arrivée")}
-    ${num('ed-eh','Relance eau chaude (h)',c.ecs_avance_h,"Heures avant l'arrivée")}
     ${num('ed-si','Rester en éco si arrivée dans moins de (h)',c.seuil_inoccupe_h,'Sinon : inoccupé')}
     ${num('ed-dm','Durée du ménage (h)',c.duree_menage_h,'Après le départ ('+esc(c.heure_depart)+')')}
+    <div class="f full" style="margin-top:6px"><label style="color:var(--acc);text-transform:uppercase;font-size:11px;letter-spacing:.08em">💧 Eau chaude</label></div>
+    <div class="f"><label>Groupe eau chaude</label><input type="text" id="ed-ge" value="${esc(c.groupe_ecs)}" placeholder="ex. TILH"><span class="hint">Même groupe = même ballon (il chauffe dès qu'un logement en a besoin)</span></div>
+    ${num('ed-eh','Relance avant arrivée (h)',c.ecs_avance_h,'Le ballon chauffe même en heures pleines')}
+    ${num('ed-er','Température de relance (°C)',c.ecs_temp_relance,'≥ 55 °C : sécurité sanitaire après un arrêt')}
+    ${num('ed-em','Pendant le séjour (°C)',c.ecs_temp_marche,'')}
+    ${num('ed-ea','Logement vide (°C)',c.ecs_temp_arret,'Ou le mode arrêt du chauffe-eau')}
     </div>
-    ${e && e.planning.length ? `<div class="card-title" style="margin-top:16px">Programme des prochains jours</div><div class="tbl-wrap"><table>${e.planning.map(p=>`<tr><td class="small">${esc(fdt(p.quand))}</td><td>${badgeMode(p.mode,p.consigne)}</td><td>${p.ecs==='on'?'💧 eau chaude':''}</td><td class="small muted hide-m">${esc(p.raison)}</td></tr>`).join('')}</table></div>` : ''}
+    ${e && e.planning.length ? `<div class="card-title" style="margin-top:16px">Programme du chauffage</div><div class="tbl-wrap"><table>${e.planning.map(p=>`<tr><td class="small">${esc(fdt(p.quand))}</td><td>${badgeMode(p.mode,p.consigne)}</td><td class="small muted hide-m">${esc(p.raison)}</td></tr>`).join('')}</table></div>` : ''}
     <div class="actions"><button class="btn" id="ed-save">Enregistrer</button><button class="btn ghost" data-close>Annuler</button></div>`);
   $('ed-preset').onclick = () => { const p=S.domo.presets[$('ed-type').value];
-    [['ed-tc','temp_confort'],['ed-te','temp_eco'],['ed-ti','temp_inoccupe'],['ed-ph','prechauffage_h'],['ed-eh','ecs_avance_h'],['ed-si','seuil_inoccupe_h'],['ed-dm','duree_menage_h']].forEach(([id,k])=>$(id).value=p[k]);
+    [['ed-tc','temp_confort'],['ed-te','temp_eco'],['ed-ti','temp_inoccupe'],['ed-ph','prechauffage_h'],['ed-si','seuil_inoccupe_h'],['ed-dm','duree_menage_h']].forEach(([id,k])=>$(id).value=p[k]);
     toast('Valeurs conseillées appliquées — pensez à enregistrer'); };
   $('ed-save').onclick = () => call('domotique_save', {bien_id:c.bien_id, type_chauffage:$('ed-type').value, actif:$('ed-actif').value, chauffage:$('ed-ch').value,
     temp_confort:$('ed-tc').value, temp_eco:$('ed-te').value, temp_inoccupe:$('ed-ti').value, prechauffage_h:$('ed-ph').value,
-    ecs_avance_h:$('ed-eh').value, seuil_inoccupe_h:$('ed-si').value, duree_menage_h:$('ed-dm').value})
+    ecs_avance_h:$('ed-eh').value, seuil_inoccupe_h:$('ed-si').value, duree_menage_h:$('ed-dm').value,
+    groupe_ecs:$('ed-ge').value, ecs_temp_relance:$('ed-er').value, ecs_temp_marche:$('ed-em').value, ecs_temp_arret:$('ed-ea').value})
     .then(()=>{ fermer(); toast('Enregistré','ok'); chargerDomotique(); }).catch(erreur);
 }
 const bienNom = id => { const b=(S.reg?S.reg.biens:S.biens).find(x=>x.id===id); return b?b.nom:id; };
