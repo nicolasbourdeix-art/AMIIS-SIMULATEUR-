@@ -1,0 +1,123 @@
+blueprint:
+  name: Mes Locations — chauffage et eau chaude selon les réservations
+  description: >
+    Applique la consigne de chauffage et met en marche ou à l'arrêt le ballon d'eau chaude
+    d'un logement, d'après le capteur « Location … » alimenté par l'application Mes Locations.
+
+    - La consigne n'est envoyée aux thermostats **que lorsqu'elle change** (arrivée, départ,
+      préchauffage…) : les voyageurs peuvent régler leur thermostat pendant le séjour sans être écrasés.
+
+    - Eau chaude : pendant un séjour, le ballon ne chauffe qu'en heures creuses si vous indiquez
+      un capteur d'heures creuses ; avant une arrivée (relance), il chauffe quoi qu'il arrive.
+
+    - Si l'application ne répond pas (coupure internet), rien n'est modifié.
+  domain: automation
+  input:
+    capteur:
+      name: Capteur du logement
+      description: Le capteur « Location … » créé par le package mes_locations.yaml
+      selector:
+        entity:
+          domain: sensor
+    thermostats:
+      name: Thermostat(s) / radiateurs
+      description: Entités climate du logement (vide si pas de pilotage du chauffage)
+      default: []
+      selector:
+        entity:
+          domain: climate
+          multiple: true
+    ballon:
+      name: Ballon d'eau chaude
+      description: Interrupteur (prise, contacteur, relais) du ballon. Vide si pas de pilotage.
+      default: []
+      selector:
+        entity:
+          domain: [switch, input_boolean]
+          multiple: true
+    heures_creuses:
+      name: Heures creuses (facultatif)
+      description: Capteur binaire à « on » pendant les heures creuses (ou surplus solaire). Laisser vide pour ignorer. Vérifié toutes les 15 minutes.
+      default: []
+      selector:
+        entity:
+          domain: [binary_sensor, input_boolean]
+          multiple: true
+
+mode: queued
+max: 5
+
+trigger:
+  - platform: state
+    entity_id: !input capteur
+    to: ~
+    id: consigne
+  - platform: state
+    entity_id: !input capteur
+    attribute: consigne
+    id: consigne
+  - platform: state
+    entity_id: !input capteur
+    attribute: ecs
+    id: ecs
+  - platform: state
+    entity_id: !input capteur
+    attribute: ecs_prioritaire
+    id: ecs
+  - platform: homeassistant
+    event: start
+    id: consigne
+  - platform: time_pattern
+    minutes: "/15"
+    id: ecs
+
+variables:
+  capteur: !input capteur
+  thermostats: !input thermostats
+  ballon: !input ballon
+  hc: !input heures_creuses
+  mode_chauffage: "{{ states(capteur) }}"
+  consigne: "{{ state_attr(capteur, 'consigne') }}"
+  ecs: "{{ state_attr(capteur, 'ecs') }}"
+  prioritaire: "{{ state_attr(capteur, 'ecs_prioritaire') in [true, 'true', 'True'] }}"
+  hc_ok: "{{ hc | count == 0 or hc | select('is_state', 'on') | list | count > 0 }}"
+  ballon_on: "{{ ecs == 'on' and (prioritaire or hc_ok) }}"
+
+condition:
+  - condition: template
+    value_template: "{{ mode_chauffage not in ['unknown', 'unavailable', 'none', ''] }}"
+
+action:
+  - if:
+      - condition: template
+        value_template: "{{ trigger.id == 'consigne' and thermostats | count > 0 }}"
+    then:
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ mode_chauffage == 'arret' or consigne in [none, 'None', ''] }}"
+            sequence:
+              - service: climate.turn_off
+                target:
+                  entity_id: "{{ thermostats }}"
+                continue_on_error: true
+        default:
+          - service: climate.set_hvac_mode
+            target:
+              entity_id: "{{ thermostats }}"
+            data:
+              hvac_mode: heat
+            continue_on_error: true
+          - service: climate.set_temperature
+            target:
+              entity_id: "{{ thermostats }}"
+            data:
+              temperature: "{{ consigne | float }}"
+            continue_on_error: true
+  - if:
+      - condition: template
+        value_template: "{{ ballon | count > 0 }}"
+    then:
+      - service: "homeassistant.turn_{{ 'on' if ballon_on else 'off' }}"
+        target:
+          entity_id: "{{ ballon }}"

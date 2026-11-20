@@ -1,0 +1,54 @@
+# ───────────────────────────────────────────────────────────────
+# Mes Locations — capteurs lus depuis l'application (package Home Assistant)
+#
+# 1. Copier ce fichier dans  config/packages/mes_locations.yaml
+# 2. Dans configuration.yaml :
+#      homeassistant:
+#        packages: !include_dir_named packages
+# 3. Dans secrets.yaml, coller l'adresse affichée dans l'appli
+#    (Réglages → Chauffage & eau chaude) :
+#      mes_locations_url: "https://script.google.com/macros/s/XXXX/exec?ha=CLE"
+# 4. Redémarrer Home Assistant.
+#
+# Un capteur par logement : son état = mode de chauffage
+#   (confort / menage / eco / inoccupe / arret), et ses attributs donnent
+#   la consigne en °C, le besoin d'eau chaude, la prochaine arrivée…
+# Si un identifiant de bien a changé dans l'appli, adapter « biens.XXX ».
+# ───────────────────────────────────────────────────────────────
+
+rest:
+  - resource: !secret mes_locations_url
+    scan_interval: 600
+    timeout: 60
+    sensor:
+      - name: "Location Thiel 1"
+        unique_id: mes_locations_thiel_1
+        icon: mdi:home-thermometer
+        value_template: "{{ value_json.biens.THIEL1.mode | default('unknown') }}"
+        json_attributes_path: "$.biens.THIEL1"
+        json_attributes: [consigne, ecs, ecs_prioritaire, occupe, raison, voyageurs, arrivee, depart, prochain_changement, prochain_mode, prochaine_consigne, prochain_ecs, planning]
+      - name: "Location Thiel 2"
+        unique_id: mes_locations_thiel_2
+        icon: mdi:home-thermometer
+        value_template: "{{ value_json.biens.THIEL2.mode | default('unknown') }}"
+        json_attributes_path: "$.biens.THIEL2"
+        json_attributes: [consigne, ecs, ecs_prioritaire, occupe, raison, voyageurs, arrivee, depart, prochain_changement, prochain_mode, prochaine_consigne, prochain_ecs, planning]
+      - name: "Location Soustons"
+        unique_id: mes_locations_soustons
+        icon: mdi:home-thermometer
+        value_template: "{{ value_json.biens.SOUSTONS.mode | default('unknown') }}"
+        json_attributes_path: "$.biens.SOUSTONS"
+        json_attributes: [consigne, ecs, ecs_prioritaire, occupe, raison, voyageurs, arrivee, depart, prochain_changement, prochain_mode, prochaine_consigne, prochain_ecs, planning]
+    binary_sensor:
+      - name: "Location Thiel 1 occupée"
+        unique_id: mes_locations_thiel_1_occupe
+        device_class: occupancy
+        value_template: "{{ value_json.biens.THIEL1.occupe | default(false) }}"
+      - name: "Location Thiel 2 occupée"
+        unique_id: mes_locations_thiel_2_occupe
+        device_class: occupancy
+        value_template: "{{ value_json.biens.THIEL2.occupe | default(false) }}"
+      - name: "Location Soustons occupée"
+        unique_id: mes_locations_soustons_occupe
+        device_class: occupancy
+        value_template: "{{ value_json.biens.SOUSTONS.occupe | default(false) }}"

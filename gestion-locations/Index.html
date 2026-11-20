@@ -370,6 +370,16 @@ tfoot td{font-weight:800;border-top:2px solid var(--bd);border-bottom:none}
       <div class="actions"><button class="btn" id="reg-params-save">Enregistrer les paramètres</button></div>
     </div>
     <div class="card">
+      <div class="card-title">🔥 Chauffage &amp; eau chaude — Home Assistant</div>
+      <p class="small muted" style="margin-bottom:10px">Les consignes sont calculées à partir des réservations. Home Assistant vient les lire toutes les 10 minutes et pilote les thermostats et les ballons.</p>
+      <div class="tbl-wrap"><table id="domo-tbl"></table></div>
+      <div class="form" style="margin-top:14px">
+        <div class="f full"><label>Adresse à mettre dans Home Assistant (secrets.yaml)</label><input type="text" id="domo-url" readonly onclick="this.select()"><span class="hint">Cette adresse contient une clé secrète : ne la partagez pas.</span></div>
+        <div class="f full"><label>Calendrier des séjours (facultatif, intégration « Calendrier distant »)</label><input type="text" id="domo-ics" readonly onclick="this.select()"></div>
+      </div>
+      <div class="actions"><button class="btn ghost sm" id="domo-cle">Changer la clé secrète</button></div>
+    </div>
+    <div class="card">
       <div class="card-title">Liens utiles</div>
       <div id="reg-liens" class="small"></div>
     </div>
@@ -819,6 +829,7 @@ const LIB_PARAMS = { nom_app:'Nom de l\'application', email_alertes:'Email des a
 const CHOIX_PARAMS = { regle_2_departs:[['oui','Oui'],['non','Non']], regle_2_arrivees:[['oui','Oui'],['non','Non']], ignorer_blocages:[['oui','Oui'],['non','Non']],
   rappel_menage:[['oui','Oui'],['non','Non']], repartition_revenus:[['arrivee','Au mois d\'arrivée'],['nuits','Au prorata des nuits']] };
 function chargerReglages(){
+  chargerDomotique();
   call('reglages').then(d => {
     S.reg=d;
     $('reg-biens').innerHTML = `<thead><tr><th>Bien</th><th class="hide-m">Groupe ménage</th><th>Calendrier Airbnb</th><th>Partage des revenus</th><th></th></tr></thead><tbody>${d.biens.map(b=>`<tr class="click" data-b="${esc(b.id)}">
@@ -836,6 +847,46 @@ function chargerReglages(){
     $('reg-liens').innerHTML = `<p>📊 <a href="${esc(d.liens.base)}" target="_blank" rel="noopener">Ouvrir la Google Sheet (base de données)</a></p>
       ${d.liens.dossier?`<p style="margin-top:6px">📁 <a href="${esc(d.liens.dossier)}" target="_blank" rel="noopener">Dossier Drive des justificatifs</a> — vous pouvez le partager avec votre comptable.</p>`:''}`;
   }).catch(erreur);
+}
+const MODES = { confort:['Confort','acc'], menage:['Ménage','info'], eco:['Éco','info'], inoccupe:['Inoccupé',''], arret:['Arrêt',''] };
+const badgeMode = (m, c) => { const x=MODES[m]||[m,'']; return `<span class="badge ${x[1]}">${esc(x[0])}${c!=null?' · '+esc(c)+' °C':''}</span>`; };
+const fdt = s => { const m=String(s||'').match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/); if(!m) return ''; const d=new Date(+m[1], m[2]-1, +m[3]); return JOURS[d.getDay()]+' '+d.getDate()+' '+MOISC[d.getMonth()]+' '+m[4]+'h'+m[5]; };
+function chargerDomotique(){
+  call('domotique').then(d => {
+    S.domo = d;
+    $('domo-tbl').innerHTML = `<thead><tr><th>Logement</th><th>Maintenant</th><th>Eau chaude</th><th class="hide-m">Prochain changement</th><th></th></tr></thead><tbody>${d.reglages.map(c => {
+      const e = d.etats[c.bien_id];
+      if (!e) return `<tr class="click" data-d="${esc(c.bien_id)}"><td>${pastille(c.bien_id)}</td><td colspan="3" class="muted">Non relié à Home Assistant</td><td>✎</td></tr>`;
+      return `<tr class="click" data-d="${esc(c.bien_id)}"><td>${pastille(c.bien_id)}<div class="small muted">${esc(e.raison)}</div></td><td>${badgeMode(e.mode, e.consigne)}</td>
+        <td>${e.ecs==='on'?`<span class="badge acc">${e.ecs_prioritaire?'relance':'marche'}</span>`:'<span class="badge">arrêt</span>'}</td>
+        <td class="hide-m small">${e.prochain_changement?esc(fdt(e.prochain_changement))+' → '+badgeMode(e.prochain_mode, e.prochaine_consigne)+(e.prochain_ecs!==e.ecs?(e.prochain_ecs==='on'?' 💧 eau chaude':' eau chaude coupée'):''):'—'}</td><td>✎</td></tr>`;
+    }).join('')}</tbody>`;
+    $('domo-tbl').querySelectorAll('[data-d]').forEach(tr => tr.onclick = () => editerDomo(d.reglages.find(c=>c.bien_id===tr.dataset.d)));
+    $('domo-url').value = d.url_json || "(disponible une fois l'application déployée)";
+    $('domo-ics').value = d.url_ics || '';
+  }).catch(erreur);
+}
+$('domo-cle').onclick = () => { if (confirm("Changer la clé ? Il faudra mettre à jour l'adresse dans Home Assistant.")) call('domotique_cle').then(()=>{ chargerDomotique(); toast('Nouvelle clé générée','ok'); }).catch(erreur); };
+function editerDomo(c){
+  const e = S.domo.etats[c.bien_id];
+  const num = (id, lab, v, hint, step) => `<div class="f"><label>${lab}</label><input type="number" id="${id}" value="${esc(v)}" step="${step||1}" min="0">${hint?`<span class="hint">${hint}</span>`:''}</div>`;
+  modal('Chauffage & eau chaude — '+c.nom, `<div class="form">
+    <div class="f"><label>Relié à Home Assistant</label><select id="ed-actif"><option value="oui">Oui</option><option value="non"${c.actif==='non'?' selected':''}>Non</option></select></div>
+    <div class="f"><label>Chauffage</label><select id="ed-ch"><option value="oui">En service</option><option value="non"${c.chauffage==='non'?' selected':''}>Arrêté (été)</option></select></div>
+    ${num('ed-tc','Confort (°C)',c.temp_confort,'Pendant le séjour',0.5)}
+    ${num('ed-te','Éco (°C)',c.temp_eco,'Ménage, ou arrivée proche',0.5)}
+    ${num('ed-ti','Inoccupé (°C)',c.temp_inoccupe,'Logement vide longtemps',0.5)}
+    ${num('ed-ph','Préchauffage (h)',c.prechauffage_h,"Heures avant l'arrivée")}
+    ${num('ed-eh','Relance eau chaude (h)',c.ecs_avance_h,"Heures avant l'arrivée")}
+    ${num('ed-si','Rester en éco si arrivée dans moins de (h)',c.seuil_inoccupe_h,'Sinon : inoccupé')}
+    ${num('ed-dm','Durée du ménage (h)',c.duree_menage_h,'Après le départ ('+esc(c.heure_depart)+')')}
+    </div>
+    ${e && e.planning.length ? `<div class="card-title" style="margin-top:16px">Programme des prochains jours</div><div class="tbl-wrap"><table>${e.planning.map(p=>`<tr><td class="small">${esc(fdt(p.quand))}</td><td>${badgeMode(p.mode,p.consigne)}</td><td>${p.ecs==='on'?'💧 eau chaude':''}</td><td class="small muted hide-m">${esc(p.raison)}</td></tr>`).join('')}</table></div>` : ''}
+    <div class="actions"><button class="btn" id="ed-save">Enregistrer</button><button class="btn ghost" data-close>Annuler</button></div>`);
+  $('ed-save').onclick = () => call('domotique_save', {bien_id:c.bien_id, actif:$('ed-actif').value, chauffage:$('ed-ch').value,
+    temp_confort:$('ed-tc').value, temp_eco:$('ed-te').value, temp_inoccupe:$('ed-ti').value, prechauffage_h:$('ed-ph').value,
+    ecs_avance_h:$('ed-eh').value, seuil_inoccupe_h:$('ed-si').value, duree_menage_h:$('ed-dm').value})
+    .then(()=>{ fermer(); toast('Enregistré','ok'); chargerDomotique(); }).catch(erreur);
 }
 const bienNom = id => { const b=(S.reg?S.reg.biens:S.biens).find(x=>x.id===id); return b?b.nom:id; };
 function libRegle(b){ const v=Number(b.regle_valeur)||0, base={mois:'/mois',reservation:'/séjour',annee:'/an'}[b.regle_base||'mois'];

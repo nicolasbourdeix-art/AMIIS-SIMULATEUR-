@@ -4,7 +4,8 @@
  * Installation : voir README.md (lancer une fois la fonction installer() depuis l'éditeur).
  */
 
-function doGet() {
+function doGet(e) {
+  if (e && e.parameter && e.parameter.ha) return reponseDomotique_(e.parameter);
   var nom = 'Mes Locations';
   try { nom = params_().nom_app || nom; } catch (e) { /* pas encore installé */ }
   return HtmlService.createHtmlOutputFromFile('Index')
@@ -77,6 +78,7 @@ function installer() {
   }
 
   dossierRacine_();
+  cleDomotique_(false);
   installerDeclencheurs_();
 
   Logger.log('✅ Installation terminée.');
@@ -133,6 +135,9 @@ var ACTIONS = {
   bien_save:          { roles: ['admin'], fn: actBienSave_ },
   utilisateur_save:   { roles: ['admin'], fn: actUtilisateurSave_ },
   parametres_save:    { roles: ['admin'], fn: actParametresSave_ },
+  domotique:          { roles: ['admin'], fn: actDomotique_ },
+  domotique_save:     { roles: ['admin'], fn: actDomotiqueSave_ },
+  domotique_cle:      { roles: ['admin'], fn: function (u) { cleDomotique_(true); journal_(u.identifiant, 'domotique', 'nouvelle clé'); return actDomotique_(); } },
   mon_mdp:            { roles: TOUS, fn: actMonMdp_ },
   deconnexion:        { roles: TOUS, fn: function (u) { deconnexion_(u.token); return true; } }
 };
@@ -389,7 +394,7 @@ function actReglages_() {
   return {
     biens: lire_('Biens').map(function (b) { delete b._row; return b; }),
     utilisateurs: lire_('Utilisateurs').map(publicUser_),
-    parametres: PARAMS_DEFAUT.filter(function (x) { return ['dossier_id', 'derniere_synchro'].indexOf(x[0]) < 0; })
+    parametres: PARAMS_DEFAUT.filter(function (x) { return PARAMS_INTERNES.indexOf(x[0]) < 0; })
       .map(function (x) { return { cle: x[0], valeur: p[x[0]], description: x[2] }; }),
     liens: { base: ss_().getUrl(), dossier: p.dossier_id ? 'https://drive.google.com/drive/folders/' + p.dossier_id : '' }
   };
@@ -433,7 +438,7 @@ function actUtilisateurSave_(u, p) {
 }
 
 function actParametresSave_(u, p) {
-  var autorises = PARAMS_DEFAUT.map(function (x) { return x[0]; }).filter(function (k) { return ['dossier_id', 'derniere_synchro'].indexOf(k) < 0; });
+  var autorises = PARAMS_DEFAUT.map(function (x) { return x[0]; }).filter(function (k) { return PARAMS_INTERNES.indexOf(k) < 0; });
   Object.keys(p || {}).forEach(function (k) { if (autorises.indexOf(k) >= 0) setParam_(k, String(p[k]).trim()); });
   journal_(u.identifiant, 'paramètres', Object.keys(p).join(', '));
   return true;

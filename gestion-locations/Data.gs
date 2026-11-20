@@ -14,6 +14,8 @@ var SCHEMA = {
   Menages: ['reservation_id', 'bien_id', 'date', 'statut', 'fait_le', 'fait_par', 'note'],
   Documents: ['id', 'date', 'bien_id', 'type', 'categorie', 'fournisseur', 'montant', 'imputation', 'description',
               'fichier_id', 'fichier_url', 'ajoute_par', 'ajoute_le', 'envoye_le'],
+  Domotique: ['bien_id', 'actif', 'chauffage', 'prechauffage_h', 'ecs_avance_h', 'temp_confort', 'temp_eco',
+              'temp_inoccupe', 'seuil_inoccupe_h', 'duree_menage_h'],
   Parametres: ['cle', 'valeur', 'description'],
   Journal: ['date', 'utilisateur', 'action', 'details']
 };
@@ -22,7 +24,8 @@ var SCHEMA = {
 var NUMERIQUES = {
   Biens: ['regle_valeur'],
   Reservations: ['nuits', 'voyageurs', 'montant'],
-  Documents: ['montant']
+  Documents: ['montant'],
+  Domotique: ['prechauffage_h', 'ecs_avance_h', 'temp_confort', 'temp_eco', 'temp_inoccupe', 'seuil_inoccupe_h', 'duree_menage_h']
 };
 
 var _ssCache = null;
@@ -129,8 +132,12 @@ var PARAMS_DEFAUT = [
   ['repartition_revenus', 'arrivee', '« arrivee » = revenu compté le mois d\'arrivée, « nuits » = réparti au prorata des nuits'],
   ['rappel_menage', 'oui', 'Envoyer chaque soir à 18h le programme du lendemain aux personnes « Ménage »'],
   ['dossier_id', '', 'Dossier Google Drive des justificatifs (rempli automatiquement)'],
-  ['derniere_synchro', '', 'Date de la dernière synchronisation Airbnb (automatique)']
+  ['derniere_synchro', '', 'Date de la dernière synchronisation Airbnb (automatique)'],
+  ['cle_domotique', '', 'Clé secrète de lecture pour Home Assistant (automatique)']
 ];
+
+/** Paramètres gérés par l'application, non modifiables dans le formulaire. */
+var PARAMS_INTERNES = ['dossier_id', 'derniere_synchro', 'cle_domotique'];
 
 function params_() {
   var o = {};
