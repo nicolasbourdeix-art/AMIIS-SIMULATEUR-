@@ -4,7 +4,7 @@
 
 /* ── Règles de partage ───────────────────────────────────
  * regle_type :
- *   'seuil'        → le propriétaire touche jusqu'à X €, le reste est pour moi (ex. Thiel : 600 €)
+ *   'seuil'        → le propriétaire touche jusqu'à X €, le reste est pour moi (ex. Tilh : 600 €)
  *   'pourcentage'  → je touche X % du montant, le reste va au propriétaire
  *   'total'        → 100 % pour moi
  *   'proprietaire' → 100 % pour le propriétaire

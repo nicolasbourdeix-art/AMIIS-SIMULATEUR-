@@ -27,6 +27,32 @@ blueprint:
         entity:
           domain: climate
           multiple: true
+    fil_pilote:
+      name: Radiateurs fil pilote (facultatif)
+      description: >
+        Entités « select » de modules fil pilote (ex. Nodon, Zigbee2MQTT « pilot_wire_mode »).
+        Confort → option confort ; Éco et Ménage → option éco ; Inoccupé → hors-gel ; Arrêt → arrêt.
+      default: []
+      selector:
+        entity:
+          domain: select
+          multiple: true
+    option_confort:
+      name: Fil pilote — nom de l'option Confort
+      default: comfort
+      selector: { text: {} }
+    option_eco:
+      name: Fil pilote — nom de l'option Éco
+      default: eco
+      selector: { text: {} }
+    option_horsgel:
+      name: Fil pilote — nom de l'option Hors-gel
+      default: frost_protection
+      selector: { text: {} }
+    option_arret:
+      name: Fil pilote — nom de l'option Arrêt
+      default: "off"
+      selector: { text: {} }
     ballon:
       name: Ballon d'eau chaude
       description: Interrupteur (prise, contacteur, relais) du ballon. Vide si pas de pilotage.
@@ -75,6 +101,13 @@ variables:
   capteur: !input capteur
   thermostats: !input thermostats
   ballon: !input ballon
+  fil_pilote: !input fil_pilote
+  options_fp:
+    confort: !input option_confort
+    eco: !input option_eco
+    menage: !input option_eco
+    inoccupe: !input option_horsgel
+    arret: !input option_arret
   hc: !input heures_creuses
   mode_chauffage: "{{ states(capteur) }}"
   consigne: "{{ state_attr(capteur, 'consigne') }}"
@@ -114,6 +147,16 @@ action:
             data:
               temperature: "{{ consigne | float }}"
             continue_on_error: true
+  - if:
+      - condition: template
+        value_template: "{{ trigger.id == 'consigne' and fil_pilote | count > 0 and mode_chauffage in options_fp }}"
+    then:
+      - service: select.select_option
+        target:
+          entity_id: "{{ fil_pilote }}"
+        data:
+          option: "{{ options_fp[mode_chauffage] }}"
+        continue_on_error: true
   - if:
       - condition: template
         value_template: "{{ ballon | count > 0 }}"

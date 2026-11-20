@@ -15,6 +15,7 @@
 
 var DOMO_DEFAUT = {
   actif: 'oui',          // envoyer ce logement à Home Assistant
+  type_chauffage: 'autre', // plancher | radiateurs | pac | autre (sert aux valeurs conseillées)
   chauffage: 'oui',      // 'non' = mode « arret » (été)
   prechauffage_h: 4,     // heures de préchauffage avant l'arrivée
   ecs_avance_h: 8,       // heures de relance du ballon avant l'arrivée
@@ -23,6 +24,16 @@ var DOMO_DEFAUT = {
   temp_inoccupe: 12,
   seuil_inoccupe_h: 36,  // si la prochaine arrivée est à moins de X h, on reste en éco
   duree_menage_h: 3      // heures en mode « ménage » après le départ
+};
+
+/** Valeurs conseillées selon le type de chauffage (appliquées depuis l'interface). */
+var PRESETS_CHAUFFAGE = {
+  // Forte inertie : on préchauffe longtemps, on ne descend pas trop bas, pas de baisse pendant le ménage
+  plancher:   { label: 'Plancher chauffant', prechauffage_h: 12, seuil_inoccupe_h: 72, temp_confort: 20, temp_eco: 18, temp_inoccupe: 15, duree_menage_h: 0, ecs_avance_h: 8 },
+  // Réaction rapide : préchauffage court, on coupe vite
+  radiateurs: { label: 'Radiateurs électriques', prechauffage_h: 2, seuil_inoccupe_h: 24, temp_confort: 20, temp_eco: 16, temp_inoccupe: 12, duree_menage_h: 3, ecs_avance_h: 8 },
+  pac:        { label: 'Pompe à chaleur / clim réversible', prechauffage_h: 4, seuil_inoccupe_h: 36, temp_confort: 20, temp_eco: 17, temp_inoccupe: 14, duree_menage_h: 2, ecs_avance_h: 8 },
+  autre:      { label: 'Autre', prechauffage_h: 4, seuil_inoccupe_h: 36, temp_confort: 20, temp_eco: 17, temp_inoccupe: 12, duree_menage_h: 3, ecs_avance_h: 8 }
 };
 
 var H_MS = 3600000;
@@ -198,6 +209,7 @@ function actDomotique_() {
   var url = urlApp_(), cle = cleDomotique_(false);
   return {
     reglages: reglagesDomo_().map(function (r) { delete r._row; return r; }),
+    presets: PRESETS_CHAUFFAGE,
     etats: etatsDomotique_(),
     url_json: url ? url + '?ha=' + cle : '',
     url_ics: url ? url + '?ha=' + cle + '&format=ics' : ''
@@ -210,7 +222,8 @@ function actDomotiqueSave_(u, p) {
   var o = { bien_id: cfg.bien_id, _row: cfg._row };
   Object.keys(DOMO_DEFAUT).forEach(function (k) {
     var v = p[k] !== undefined ? p[k] : cfg[k];
-    o[k] = typeof DOMO_DEFAUT[k] === 'number' ? (Number(String(v).replace(',', '.')) || 0) : (v === 'non' ? 'non' : 'oui');
+    if (k === 'type_chauffage') o[k] = PRESETS_CHAUFFAGE[v] ? v : 'autre';
+    else o[k] = typeof DOMO_DEFAUT[k] === 'number' ? (Number(String(v).replace(',', '.')) || 0) : (v === 'non' ? 'non' : 'oui');
   });
   if (o.temp_inoccupe < 5) throw new Error('Gardez au moins 5 °C en inoccupé (risque de gel).');
   sauver_('Domotique', o);

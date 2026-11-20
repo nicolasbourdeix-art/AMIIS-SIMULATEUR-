@@ -133,7 +133,7 @@ function resasActives_(resas) {
 }
 
 /**
- * Règles (pour les biens d'un même « groupe de ménage », ex. les deux maisons mitoyennes de Thiel) :
+ * Règles (pour les biens d'un même « groupe de ménage », ex. les deux maisons mitoyennes de Tilh) :
  *  - 2 départs le même jour  → deux ménages à faire le même jour : impossible
  *  - 2 arrivées le même jour → deux logements à préparer pour le même jour : impossible
  *  - chevauchement dans un même bien (double réservation)
@@ -224,6 +224,7 @@ function fr_(d) {
 /** Toutes les heures : synchro Airbnb + email si un nouveau conflit apparaît. */
 function syncAuto() {
   synchroniser_();
+  try { importerMontantsEmails_(); } catch (e) { console.error('Import emails : ' + e.message); }
   alerterConflits_();
 }
 

@@ -49,10 +49,10 @@ function installer() {
   // Biens de départ (modifiables ensuite dans Réglages → Biens)
   if (!lire_('Biens').length) {
     [
-      { id: 'THIEL1', nom: 'Thiel — Logement 1', ville: 'Thiel', groupe_menage: 'THIEL', couleur: '#E8930A',
-        regle_type: 'seuil', regle_valeur: 600, regle_base: 'mois', proprietaire: 'Propriétaire Thiel' },
-      { id: 'THIEL2', nom: 'Thiel — Logement 2', ville: 'Thiel', groupe_menage: 'THIEL', couleur: '#2E86AB',
-        regle_type: 'seuil', regle_valeur: 600, regle_base: 'mois', proprietaire: 'Propriétaire Thiel' },
+      { id: 'TILH1', nom: 'Tilh — Logement 1', ville: 'Tilh', groupe_menage: 'TILH', couleur: '#E8930A',
+        regle_type: 'seuil', regle_valeur: 600, regle_base: 'mois', proprietaire: 'Propriétaire Tilh' },
+      { id: 'TILH2', nom: 'Tilh — Logement 2', ville: 'Tilh', groupe_menage: 'TILH', couleur: '#2E86AB',
+        regle_type: 'seuil', regle_valeur: 600, regle_base: 'mois', proprietaire: 'Propriétaire Tilh' },
       { id: 'SOUSTONS', nom: 'Soustons', ville: 'Soustons', groupe_menage: '', couleur: '#3BA55C',
         regle_type: 'total', regle_valeur: 0, regle_base: 'mois', proprietaire: '' }
     ].forEach(function (b) {
@@ -66,7 +66,7 @@ function installer() {
   if (!lire_('Utilisateurs').length) {
     [
       { identifiant: 'nicolas', nom: 'Nicolas', email: moi, role: 'admin', biens: '*' },
-      { identifiant: 'laetitia', nom: 'Laetitia', email: '', role: 'menage', biens: 'THIEL1,THIEL2' },
+      { identifiant: 'laetitia', nom: 'Laetitia', email: '', role: 'menage', biens: 'TILH1,TILH2' },
       { identifiant: 'xavier', nom: 'Xavier', email: '', role: 'gestionnaire', biens: 'SOUSTONS' }
     ].forEach(function (u) {
       var mdp = aleatoire_(10);
@@ -79,6 +79,17 @@ function installer() {
 
   dossierRacine_();
   cleDomotique_(false);
+  if (!lire_('Domotique').length) {
+    // À vérifier dans Réglages → Chauffage & eau chaude (quel logement de Tilh a le plancher chauffant ?)
+    [['TILH1', 'plancher'], ['TILH2', 'radiateurs'], ['SOUSTONS', 'autre']].forEach(function (x) {
+      var o = { bien_id: x[0] };
+      Object.keys(DOMO_DEFAUT).forEach(function (k) { o[k] = DOMO_DEFAUT[k]; });
+      var pr = PRESETS_CHAUFFAGE[x[1]];
+      Object.keys(pr).forEach(function (k) { if (k !== 'label') o[k] = pr[k]; });
+      o.type_chauffage = x[1];
+      sauver_('Domotique', o);
+    });
+  }
   installerDeclencheurs_();
 
   Logger.log('✅ Installation terminée.');
@@ -130,7 +141,11 @@ var ACTIONS = {
   document_save:      { roles: TOUS, fn: actDocumentSave_ },
   document_suppr:     { roles: TOUS, fn: actDocumentSuppr_ },
   envoyer_comptable:  { roles: ['admin', 'gestionnaire'], fn: function (u, p) { return envoyerComptable_(u, p.ids || []); } },
-  synchroniser:       { roles: GESTION, fn: function (u) { var r = synchroniser_(); r.alertes = alerterConflits_(); journal_(u.identifiant, 'synchro', JSON.stringify(r.biens)); return r; } },
+  synchroniser:       { roles: GESTION, fn: function (u) {
+                          var r = synchroniser_();
+                          try { r.emails = importerMontantsEmails_(); } catch (e) { r.emails = { erreur: e.message }; }
+                          r.alertes = alerterConflits_(); journal_(u.identifiant, 'synchro', JSON.stringify(r.biens)); return r; } },
+  emails_import:      { roles: GESTION, fn: function (u) { var r = importerMontantsEmails_(true); journal_(u.identifiant, 'import emails', JSON.stringify(r)); return r; } },
   reglages:           { roles: ['admin'], fn: actReglages_ },
   bien_save:          { roles: ['admin'], fn: actBienSave_ },
   utilisateur_save:   { roles: ['admin'], fn: actUtilisateurSave_ },
@@ -174,7 +189,7 @@ function masquer_(u, r) {
     id: r.id, bien_id: r.bien_id, source: r.source, type: r.type, code: r.code, voyageur: r.voyageur,
     arrivee: r.arrivee, depart: r.depart, nuits: r.nuits, voyageurs: r.voyageurs, statut: r.statut, notes: r.notes
   };
-  if (u.role !== 'menage') { o.montant = r.montant; o.tel4 = r.tel4; o.maj_le = r.maj_le; }
+  if (u.role !== 'menage') { o.montant = r.montant; o.montant_source = r.montant_source; o.tel4 = r.tel4; o.maj_le = r.maj_le; }
   return o;
 }
 
@@ -320,7 +335,10 @@ function actReservationSave_(u, p) {
     }
     ['voyageur', 'notes'].forEach(function (k) { if (p[k] !== undefined) r[k] = String(p[k]).slice(0, 500); });
     if (p.voyageurs !== undefined) r.voyageurs = p.voyageurs === '' ? '' : Number(p.voyageurs);
-    if (p.montant !== undefined) r.montant = p.montant === '' ? '' : Number(String(p.montant).replace(',', '.'));
+    if (p.montant !== undefined) {
+      var mt = p.montant === '' ? '' : Number(String(p.montant).replace(',', '.'));
+      if (mt !== r.montant) { r.montant = mt; r.montant_source = mt === '' ? '' : 'manuel'; }
+    }
     if (p.statut && ['confirmée', 'annulée'].indexOf(p.statut) >= 0) r.statut = p.statut;
     r.maj_le = maintenant_();
     sauver_('Reservations', r);
@@ -402,7 +420,7 @@ function actReglages_() {
 
 function actBienSave_(u, p) {
   var id = String(p.id || '').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '');
-  if (!id) throw new Error('Identifiant du bien obligatoire (ex. THIEL1).');
+  if (!id) throw new Error('Identifiant du bien obligatoire (ex. TILH1).');
   var b = lire_('Biens').filter(function (x) { return x.id === id; })[0] || { id: id };
   if (p.nouveau && b._row) throw new Error('Un bien avec cet identifiant existe déjà.');
   ['nom', 'ville', 'groupe_menage', 'ical_urls', 'couleur', 'regle_type', 'regle_base', 'proprietaire',

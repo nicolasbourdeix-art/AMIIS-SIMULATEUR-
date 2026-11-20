@@ -286,10 +286,11 @@ tfoot td{font-weight:800;border-top:2px solid var(--bd);border-bottom:none}
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           <select id="res-annee" style="width:auto"></select>
           <select id="res-bien" style="width:auto"></select>
+          <button class="btn sec sm" id="res-mail" data-roles="admin,gestionnaire">📧 Récupérer les montants</button>
           <button class="btn sm" id="res-new" data-roles="admin,gestionnaire">+ Réservation hors Airbnb</button>
         </div>
       </div>
-      <p class="small muted" style="margin-bottom:8px">Les réservations Airbnb arrivent toutes seules (toutes les heures). Airbnb ne transmet pas les montants : cliquez sur une ligne pour saisir le <b>montant net versé</b>.</p>
+      <p class="small muted" style="margin-bottom:8px">Les réservations Airbnb arrivent toutes seules (toutes les heures). Les montants sont lus automatiquement dans les emails « Réservation confirmée » d'Airbnb (📧) ; vous pouvez aussi cliquer sur une ligne pour saisir le <b>montant net versé</b> (✍️).</p>
       <div class="tbl-wrap"><table id="res-tbl"></table></div>
     </div>
   </section>
@@ -358,7 +359,7 @@ tfoot td{font-weight:800;border-top:2px solid var(--bd);border-bottom:none}
     <div class="card">
       <div class="card-title">Biens <button class="btn sm" id="reg-bien-new">+ Ajouter un bien</button></div>
       <div class="tbl-wrap"><table id="reg-biens"></table></div>
-      <p class="small muted" style="margin-top:8px">Les biens avec le même <b>groupe de ménage</b> (ex. THIEL) sont surveillés ensemble : alerte si 2 départs ou 2 arrivées le même jour.</p>
+      <p class="small muted" style="margin-top:8px">Les biens avec le même <b>groupe de ménage</b> (ex. TILH) sont surveillés ensemble : alerte si 2 départs ou 2 arrivées le même jour.</p>
     </div>
     <div class="card">
       <div class="card-title">Accès / utilisateurs <button class="btn sm" id="reg-user-new">+ Ajouter une personne</button></div>
@@ -604,7 +605,8 @@ $('cal-sync').onclick = () => {
   const b=$('cal-sync'); b.disabled=true; b.innerHTML='<span class="spin">⟳</span> Synchronisation…';
   call('synchroniser').then(r => {
     const t = r.biens.map(x => `${x.bien} : ${x.erreur ? '❌ '+x.erreur : `+${x.nouvelles} nouvelle(s), ${x.modifiees} modifiée(s), ${x.annulees} annulée(s)`}`).join('\n');
-    toast(r.biens.length ? t : 'Aucun calendrier Airbnb renseigné (Réglages → Biens).', r.biens.some(x=>x.erreur)?'ko':'ok');
+    const em = r.emails && !r.emails.desactive ? (r.emails.erreur ? '\nEmails : ❌ '+r.emails.erreur : `\nEmails : ${r.emails.appliques} montant(s) récupéré(s)`) : '';
+    toast((r.biens.length ? t : 'Aucun calendrier Airbnb renseigné (Réglages → Biens).') + em, r.biens.some(x=>x.erreur)?'ko':'ok');
     rafraichir();
   }).catch(erreur).finally(()=>{ b.disabled=false; b.textContent='⟳ Synchroniser Airbnb'; });
 };
@@ -662,6 +664,9 @@ function majMenage(id, p, discret){
 /* ═══════════════════ Réservations ═══════════════════ */
 $('res-annee').onchange = $('res-bien').onchange = () => chargerResas();
 $('res-new').onclick = () => editerResa(null);
+$('res-mail').onclick = () => { const b=$('res-mail'); b.disabled=true;
+  call('emails_import').then(r => { toast(`${r.lus} nouvel(s) email(s) Airbnb lu(s) · ${r.appliques} réservation(s) complétée(s)`, 'ok'); chargerResas(); })
+    .catch(erreur).finally(()=>b.disabled=false); };
 function chargerResas(){
   call('reservations', {annee:$('res-annee').value}).then(liste => {
     const fb=$('res-bien').value;
@@ -672,7 +677,7 @@ function chargerResas(){
     $('res-tbl').innerHTML = `<thead><tr><th>Bien</th><th>Voyageur</th><th>Arrivée</th><th class="hide-m">Départ</th><th class="n">Nuits</th><th class="n hide-m">Pers.</th>${m?'<th class="n">Montant</th>':''}<th>État</th></tr></thead>
       <tbody>${l.map(r=>`<tr class="click" data-id="${esc(r.id)}"><td>${pastille(r.bien_id)}</td><td>${esc(r.voyageur||r.code||'—')}<div class="small muted">${esc(r.source)}</div></td>
       <td>${esc(fd(r.arrivee))}</td><td class="hide-m">${esc(fd(r.depart))}</td><td class="n">${esc(r.nuits)}</td><td class="n hide-m">${esc(r.voyageurs||'')}</td>
-      ${m?`<td class="n">${r.montant!==''&&r.montant!=null?eur(r.montant):'<span class="badge acc">à saisir</span>'}</td>`:''}
+      ${m?`<td class="n">${r.montant!==''&&r.montant!=null?`<span title="${r.montant_source==='email'?'Lu dans l\'email Airbnb':'Saisi à la main'}">${r.montant_source==='email'?'📧':'✍️'}</span> `+eur(r.montant):'<span class="badge acc">à saisir</span>'}</td>`:''}
       <td>${r.statut==='annulée'?'<span class="badge ko">annulée</span>':'<span class="badge ok">confirmée</span>'}</td></tr>`).join('') || `<tr><td colspan="8" class="empty">Aucune réservation.</td></tr>`}</tbody>
       ${l.length?`<tfoot><tr><td colspan="3">${l.length} séjour(s)</td><td class="hide-m"></td><td class="n">${nuits}</td><td class="hide-m"></td>${m?`<td class="n">${eur(tot)}</td>`:''}<td></td></tr></tfoot>`:''}`;
     $('res-tbl').querySelectorAll('tr[data-id]').forEach(tr => tr.onclick = () => {
@@ -825,9 +830,9 @@ function editerDoc(d){
 /* ═══════════════════ Réglages ═══════════════════ */
 const LIB_PARAMS = { nom_app:'Nom de l\'application', email_alertes:'Email des alertes', email_comptable:'Email du comptable',
   regle_2_departs:'Alerte 2 départs le même jour', regle_2_arrivees:'Alerte 2 arrivées le même jour', ignorer_blocages:'Ignorer les dates bloquées',
-  repartition_revenus:'Comptage des revenus', rappel_menage:'Rappel ménage la veille (18h)' };
+  repartition_revenus:'Comptage des revenus', rappel_menage:'Rappel ménage la veille (18h)', import_emails:'Montants depuis les emails Airbnb', emails_transfert:'Emails transférés acceptés de' };
 const CHOIX_PARAMS = { regle_2_departs:[['oui','Oui'],['non','Non']], regle_2_arrivees:[['oui','Oui'],['non','Non']], ignorer_blocages:[['oui','Oui'],['non','Non']],
-  rappel_menage:[['oui','Oui'],['non','Non']], repartition_revenus:[['arrivee','Au mois d\'arrivée'],['nuits','Au prorata des nuits']] };
+  rappel_menage:[['oui','Oui'],['non','Non']], import_emails:[['oui','Oui'],['non','Non']], repartition_revenus:[['arrivee','Au mois d\'arrivée'],['nuits','Au prorata des nuits']] };
 function chargerReglages(){
   chargerDomotique();
   call('reglages').then(d => {
@@ -841,7 +846,7 @@ function chargerReglages(){
       <td><b>${esc(u.nom||u.identifiant)}</b><div class="small muted">${esc(u.identifiant)}${u.email?' · '+esc(u.email):''}</div></td><td><span class="badge info">${esc(u.role_label)}</span>${u.actif==='non'?' <span class="badge ko">désactivé</span>':''}</td>
       <td class="hide-m small">${u.biens==='*'?'Tous':esc((u.biens||'').split(',').map(x=>bienNom(x.trim())).join(', '))}</td><td class="hide-m small">${esc(u.derniere_connexion||'jamais')}</td><td>✎</td></tr>`).join('')}</tbody>`;
     $('reg-users').querySelectorAll('[data-u]').forEach(tr => tr.onclick = () => editerUser(d.utilisateurs.find(u=>u.identifiant===tr.dataset.u)));
-    $('reg-params').innerHTML = d.parametres.map(p => `<div class="f${['email_alertes','email_comptable'].includes(p.cle)?' full':''}"><label>${esc(LIB_PARAMS[p.cle]||p.cle)}</label>
+    $('reg-params').innerHTML = d.parametres.map(p => `<div class="f${['email_alertes','email_comptable','emails_transfert'].includes(p.cle)?' full':''}"><label>${esc(LIB_PARAMS[p.cle]||p.cle)}</label>
       ${CHOIX_PARAMS[p.cle] ? `<select data-p="${esc(p.cle)}">${CHOIX_PARAMS[p.cle].map(([v,l])=>`<option value="${v}"${v===p.valeur?' selected':''}>${l}</option>`).join('')}</select>`
         : `<input type="text" data-p="${esc(p.cle)}" value="${esc(p.valeur)}">`}<span class="hint">${esc(p.description)}</span></div>`).join('');
     $('reg-liens').innerHTML = `<p>📊 <a href="${esc(d.liens.base)}" target="_blank" rel="noopener">Ouvrir la Google Sheet (base de données)</a></p>
@@ -857,7 +862,7 @@ function chargerDomotique(){
     $('domo-tbl').innerHTML = `<thead><tr><th>Logement</th><th>Maintenant</th><th>Eau chaude</th><th class="hide-m">Prochain changement</th><th></th></tr></thead><tbody>${d.reglages.map(c => {
       const e = d.etats[c.bien_id];
       if (!e) return `<tr class="click" data-d="${esc(c.bien_id)}"><td>${pastille(c.bien_id)}</td><td colspan="3" class="muted">Non relié à Home Assistant</td><td>✎</td></tr>`;
-      return `<tr class="click" data-d="${esc(c.bien_id)}"><td>${pastille(c.bien_id)}<div class="small muted">${esc(e.raison)}</div></td><td>${badgeMode(e.mode, e.consigne)}</td>
+      return `<tr class="click" data-d="${esc(c.bien_id)}"><td>${pastille(c.bien_id)}<div class="small muted">${esc((d.presets[c.type_chauffage]||{}).label||'')} · ${esc(e.raison)}</div></td><td>${badgeMode(e.mode, e.consigne)}</td>
         <td>${e.ecs==='on'?`<span class="badge acc">${e.ecs_prioritaire?'relance':'marche'}</span>`:'<span class="badge">arrêt</span>'}</td>
         <td class="hide-m small">${e.prochain_changement?esc(fdt(e.prochain_changement))+' → '+badgeMode(e.prochain_mode, e.prochaine_consigne)+(e.prochain_ecs!==e.ecs?(e.prochain_ecs==='on'?' 💧 eau chaude':' eau chaude coupée'):''):'—'}</td><td>✎</td></tr>`;
     }).join('')}</tbody>`;
@@ -871,6 +876,9 @@ function editerDomo(c){
   const e = S.domo.etats[c.bien_id];
   const num = (id, lab, v, hint, step) => `<div class="f"><label>${lab}</label><input type="number" id="${id}" value="${esc(v)}" step="${step||1}" min="0">${hint?`<span class="hint">${hint}</span>`:''}</div>`;
   modal('Chauffage & eau chaude — '+c.nom, `<div class="form">
+    <div class="f full"><label>Type de chauffage</label><div style="display:flex;gap:8px;flex-wrap:wrap">
+      <select id="ed-type" style="flex:1;min-width:180px">${Object.entries(S.domo.presets).map(([k,p])=>`<option value="${k}"${k===c.type_chauffage?' selected':''}>${esc(p.label)}</option>`).join('')}</select>
+      <button class="btn sec sm" id="ed-preset" type="button">Appliquer les valeurs conseillées</button></div></div>
     <div class="f"><label>Relié à Home Assistant</label><select id="ed-actif"><option value="oui">Oui</option><option value="non"${c.actif==='non'?' selected':''}>Non</option></select></div>
     <div class="f"><label>Chauffage</label><select id="ed-ch"><option value="oui">En service</option><option value="non"${c.chauffage==='non'?' selected':''}>Arrêté (été)</option></select></div>
     ${num('ed-tc','Confort (°C)',c.temp_confort,'Pendant le séjour',0.5)}
@@ -883,7 +891,10 @@ function editerDomo(c){
     </div>
     ${e && e.planning.length ? `<div class="card-title" style="margin-top:16px">Programme des prochains jours</div><div class="tbl-wrap"><table>${e.planning.map(p=>`<tr><td class="small">${esc(fdt(p.quand))}</td><td>${badgeMode(p.mode,p.consigne)}</td><td>${p.ecs==='on'?'💧 eau chaude':''}</td><td class="small muted hide-m">${esc(p.raison)}</td></tr>`).join('')}</table></div>` : ''}
     <div class="actions"><button class="btn" id="ed-save">Enregistrer</button><button class="btn ghost" data-close>Annuler</button></div>`);
-  $('ed-save').onclick = () => call('domotique_save', {bien_id:c.bien_id, actif:$('ed-actif').value, chauffage:$('ed-ch').value,
+  $('ed-preset').onclick = () => { const p=S.domo.presets[$('ed-type').value];
+    [['ed-tc','temp_confort'],['ed-te','temp_eco'],['ed-ti','temp_inoccupe'],['ed-ph','prechauffage_h'],['ed-eh','ecs_avance_h'],['ed-si','seuil_inoccupe_h'],['ed-dm','duree_menage_h']].forEach(([id,k])=>$(id).value=p[k]);
+    toast('Valeurs conseillées appliquées — pensez à enregistrer'); };
+  $('ed-save').onclick = () => call('domotique_save', {bien_id:c.bien_id, type_chauffage:$('ed-type').value, actif:$('ed-actif').value, chauffage:$('ed-ch').value,
     temp_confort:$('ed-tc').value, temp_eco:$('ed-te').value, temp_inoccupe:$('ed-ti').value, prechauffage_h:$('ed-ph').value,
     ecs_avance_h:$('ed-eh').value, seuil_inoccupe_h:$('ed-si').value, duree_menage_h:$('ed-dm').value})
     .then(()=>{ fermer(); toast('Enregistré','ok'); chargerDomotique(); }).catch(erreur);
@@ -899,11 +910,11 @@ $('reg-user-new').onclick = () => editerUser(null);
 function editerBien(b){
   const nouveau=!b; b = b || {id:'', nom:'', ville:'', groupe_menage:'', ical_urls:'', couleur:'#8E6CC9', regle_type:'total', regle_valeur:0, regle_base:'mois', proprietaire:'', heure_arrivee:'16:00', heure_depart:'11:00', actif:'oui'};
   modal(nouveau?'Nouveau bien':b.nom, `<div class="form">
-    <div class="f"><label>Identifiant court</label><input type="text" id="eb-id" value="${esc(b.id)}" ${nouveau?'':'disabled'} placeholder="ex. THIEL1"></div>
+    <div class="f"><label>Identifiant court</label><input type="text" id="eb-id" value="${esc(b.id)}" ${nouveau?'':'disabled'} placeholder="ex. TILH1"></div>
     <div class="f"><label>Nom affiché</label><input type="text" id="eb-nom" value="${esc(b.nom)}"></div>
     <div class="f"><label>Ville</label><input type="text" id="eb-ville" value="${esc(b.ville)}"></div>
     <div class="f"><label>Couleur</label><input type="color" id="eb-coul" value="${esc(b.couleur||'#888888')}" style="height:38px;width:100%;border:1px solid var(--bd2);border-radius:6px"></div>
-    <div class="f"><label>Groupe de ménage</label><input type="text" id="eb-grp" value="${esc(b.groupe_menage)}" placeholder="ex. THIEL"><span class="hint">Même groupe = même personne de ménage, surveillés ensemble</span></div>
+    <div class="f"><label>Groupe de ménage</label><input type="text" id="eb-grp" value="${esc(b.groupe_menage)}" placeholder="ex. TILH"><span class="hint">Même groupe = même personne de ménage, surveillés ensemble</span></div>
     <div class="f"><label>Actif</label><select id="eb-actif"><option value="oui">Oui</option><option value="non"${b.actif==='non'?' selected':''}>Non</option></select></div>
     <div class="f"><label>Heure d'arrivée</label><input type="time" id="eb-ha" value="${esc(b.heure_arrivee||'16:00')}"></div>
     <div class="f"><label>Heure de départ</label><input type="time" id="eb-hd" value="${esc(b.heure_depart||'11:00')}"></div>

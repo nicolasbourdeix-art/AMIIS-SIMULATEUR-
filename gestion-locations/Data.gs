@@ -10,11 +10,12 @@ var SCHEMA = {
           'regle_base', 'proprietaire', 'heure_arrivee', 'heure_depart', 'actif'],
   Utilisateurs: ['identifiant', 'nom', 'email', 'role', 'biens', 'hash', 'sel', 'actif', 'cree_le', 'derniere_connexion'],
   Reservations: ['id', 'bien_id', 'source', 'type', 'uid', 'code', 'voyageur', 'arrivee', 'depart', 'nuits',
-                 'voyageurs', 'montant', 'statut', 'notes', 'tel4', 'maj_le'],
+                 'voyageurs', 'montant', 'statut', 'notes', 'tel4', 'maj_le', 'montant_source'],
   Menages: ['reservation_id', 'bien_id', 'date', 'statut', 'fait_le', 'fait_par', 'note'],
   Documents: ['id', 'date', 'bien_id', 'type', 'categorie', 'fournisseur', 'montant', 'imputation', 'description',
               'fichier_id', 'fichier_url', 'ajoute_par', 'ajoute_le', 'envoye_le'],
-  Domotique: ['bien_id', 'actif', 'chauffage', 'prechauffage_h', 'ecs_avance_h', 'temp_confort', 'temp_eco',
+  EmailsAirbnb: ['message_id', 'recu_le', 'code', 'montant', 'voyageurs', 'bebes', 'voyageur', 'sujet', 'applique_le'],
+  Domotique: ['bien_id', 'actif', 'type_chauffage', 'chauffage', 'prechauffage_h', 'ecs_avance_h', 'temp_confort', 'temp_eco',
               'temp_inoccupe', 'seuil_inoccupe_h', 'duree_menage_h'],
   Parametres: ['cle', 'valeur', 'description'],
   Journal: ['date', 'utilisateur', 'action', 'details']
@@ -25,6 +26,7 @@ var NUMERIQUES = {
   Biens: ['regle_valeur'],
   Reservations: ['nuits', 'voyageurs', 'montant'],
   Documents: ['montant'],
+  EmailsAirbnb: ['montant', 'voyageurs', 'bebes'],
   Domotique: ['prechauffage_h', 'ecs_avance_h', 'temp_confort', 'temp_eco', 'temp_inoccupe', 'seuil_inoccupe_h', 'duree_menage_h']
 };
 
@@ -130,6 +132,8 @@ var PARAMS_DEFAUT = [
   ['regle_2_arrivees', 'oui', 'Alerte si 2 arrivées le même jour dans un même groupe de ménage'],
   ['ignorer_blocages', 'oui', 'Ignorer les dates simplement bloquées (« Not available ») dans Airbnb'],
   ['repartition_revenus', 'arrivee', '« arrivee » = revenu compté le mois d\'arrivée, « nuits » = réparti au prorata des nuits'],
+  ['import_emails', 'oui', 'Récupérer automatiquement les montants dans les emails Airbnb (Gmail)'],
+  ['emails_transfert', '', 'Adresses autorisées à transférer des emails Airbnb (ex. Xavier pour Soustons), séparées par des virgules'],
   ['rappel_menage', 'oui', 'Envoyer chaque soir à 18h le programme du lendemain aux personnes « Ménage »'],
   ['dossier_id', '', 'Dossier Google Drive des justificatifs (rempli automatiquement)'],
   ['derniere_synchro', '', 'Date de la dernière synchronisation Airbnb (automatique)'],

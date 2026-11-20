@@ -21,17 +21,17 @@ rest:
     scan_interval: 600
     timeout: 60
     sensor:
-      - name: "Location Thiel 1"
-        unique_id: mes_locations_thiel_1
+      - name: "Location Tilh 1"
+        unique_id: mes_locations_tilh_1
         icon: mdi:home-thermometer
-        value_template: "{{ value_json.biens.THIEL1.mode | default('unknown') }}"
-        json_attributes_path: "$.biens.THIEL1"
+        value_template: "{{ value_json.biens.TILH1.mode | default('unknown') }}"
+        json_attributes_path: "$.biens.TILH1"
         json_attributes: [consigne, ecs, ecs_prioritaire, occupe, raison, voyageurs, arrivee, depart, prochain_changement, prochain_mode, prochaine_consigne, prochain_ecs, planning]
-      - name: "Location Thiel 2"
-        unique_id: mes_locations_thiel_2
+      - name: "Location Tilh 2"
+        unique_id: mes_locations_tilh_2
         icon: mdi:home-thermometer
-        value_template: "{{ value_json.biens.THIEL2.mode | default('unknown') }}"
-        json_attributes_path: "$.biens.THIEL2"
+        value_template: "{{ value_json.biens.TILH2.mode | default('unknown') }}"
+        json_attributes_path: "$.biens.TILH2"
         json_attributes: [consigne, ecs, ecs_prioritaire, occupe, raison, voyageurs, arrivee, depart, prochain_changement, prochain_mode, prochaine_consigne, prochain_ecs, planning]
       - name: "Location Soustons"
         unique_id: mes_locations_soustons
@@ -40,14 +40,14 @@ rest:
         json_attributes_path: "$.biens.SOUSTONS"
         json_attributes: [consigne, ecs, ecs_prioritaire, occupe, raison, voyageurs, arrivee, depart, prochain_changement, prochain_mode, prochaine_consigne, prochain_ecs, planning]
     binary_sensor:
-      - name: "Location Thiel 1 occupée"
-        unique_id: mes_locations_thiel_1_occupe
+      - name: "Location Tilh 1 occupée"
+        unique_id: mes_locations_tilh_1_occupe
         device_class: occupancy
-        value_template: "{{ value_json.biens.THIEL1.occupe | default(false) }}"
-      - name: "Location Thiel 2 occupée"
-        unique_id: mes_locations_thiel_2_occupe
+        value_template: "{{ value_json.biens.TILH1.occupe | default(false) }}"
+      - name: "Location Tilh 2 occupée"
+        unique_id: mes_locations_tilh_2_occupe
         device_class: occupancy
-        value_template: "{{ value_json.biens.THIEL2.occupe | default(false) }}"
+        value_template: "{{ value_json.biens.TILH2.occupe | default(false) }}"
       - name: "Location Soustons occupée"
         unique_id: mes_locations_soustons_occupe
         device_class: occupancy

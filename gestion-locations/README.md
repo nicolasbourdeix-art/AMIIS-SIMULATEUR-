@@ -10,13 +10,13 @@ les justificatifs sont rangés dans **Google Drive**, les alertes partent par **
 | 🏠 Accueil | Arrivées et départs des 14 prochains jours, alertes, **vérification d'une demande de réservation** avant de l'accepter |
 | 📅 Calendrier | Planning mensuel des biens, jours de conflit en rouge |
 | 🧹 Ménages | Pour Laetitia : ménages à faire, heure de départ, prochaine arrivée (⚡ si c'est le jour même), nombre de personnes, bouton « Ménage fait », notes |
-| 🛏️ Réservations | Import automatique Airbnb (toutes les heures) + réservations hors Airbnb ; saisie du montant net versé |
-| 💶 Revenus | Par bien et par mois : encaissé, part propriétaire, ma part, dépenses, net. Règle Thiel : jusqu'à 600 €/mois pour le propriétaire, le reste pour moi |
+| 🛏️ Réservations | Import automatique Airbnb (toutes les heures) + réservations hors Airbnb ; **montants récupérés automatiquement dans les emails Airbnb** |
+| 💶 Revenus | Par bien et par mois : encaissé, part propriétaire, ma part, dépenses, net. Règle Tilh : jusqu'à 600 €/mois pour le propriétaire, le reste pour moi |
 | 🧾 Justificatifs | Photo d'un ticket depuis le téléphone, ou PDF ; rangement automatique dans Drive (année/mois) ; envoi groupé au comptable avec récapitulatif tableur |
 | ⚙️ Réglages | Biens, liens Airbnb, règles de partage, accès des personnes, emails, **chauffage & eau chaude (Home Assistant)** |
 
 ### Alertes de ménage
-Les biens qui ont le même **groupe de ménage** (ex. `THIEL` pour les deux logements mitoyens) sont surveillés ensemble :
+Les biens qui ont le même **groupe de ménage** (ex. `TILH` pour les deux logements mitoyens) sont surveillés ensemble :
 - **2 départs le même jour** → alerte (deux ménages le même jour)
 - **2 arrivées le même jour** → alerte (deux logements à préparer)
 - deux réservations qui se chevauchent dans un même bien → alerte
@@ -30,10 +30,23 @@ Chaque personne a son identifiant + mot de passe (pas besoin de compte Google) :
 |---|---|
 | Administrateur (Nicolas) | Tout |
 | Gestionnaire (Xavier → Soustons) | Ses biens : réservations, montants, revenus, ménages, justificatifs |
-| Ménage (Laetitia → Thiel 1 et 2) | Planning des ménages et calendrier de ses biens, **sans les montants** ; peut ajouter ses tickets |
+| Ménage (Laetitia → Tilh 1 et 2) | Planning des ménages et calendrier de ses biens, **sans les montants** ; peut ajouter ses tickets |
 | Comptable | Revenus et justificatifs, en lecture |
 
 Laetitia reçoit chaque soir à 18h le programme du lendemain par email (si son email est renseigné).
+
+### Montants récupérés automatiquement (emails Airbnb)
+Le calendrier Airbnb ne contient pas les montants, mais chaque email **« Réservation confirmée »** reçu par l'hôte indique
+le code de réservation et la ligne **« VOUS GAGNEZ … € »** (montant net versé, ménage compris, frais Airbnb déduits).
+Toutes les heures, l'application lit ces emails dans Gmail (lecture seule), retrouve la réservation grâce au code
+et remplit le montant, le nombre de voyageurs et le nom (avec une note « lit parapluie » s'il y a un bébé).
+
+- Les montants lus dans un email sont marqués 📧, ceux saisis à la main ✍️. **Une saisie manuelle n'est jamais écrasée.**
+- Si la réservation est modifiée, le dernier email reçu fait foi.
+- ⚠️ Le script lit la boîte Gmail **du compte Google avec lequel il est créé et déployé** : créez-le avec le compte qui reçoit les emails Airbnb.
+- Soustons : si les emails Airbnb arrivent chez Xavier, il peut les transférer automatiquement (filtre Gmail) ; ajoutez son adresse
+  dans Réglages → Paramètres → « Emails transférés acceptés de ». Les autres expéditeurs sont ignorés.
+- Bouton **📧 Récupérer les montants** dans l'onglet Réservations pour lancer la lecture tout de suite (elle remonte sur 13 mois).
 
 ### Chauffage et eau chaude pilotés par les réservations (Home Assistant)
 L'application calcule en permanence, pour chaque logement, le **mode de chauffage** et le **besoin d'eau chaude** ;
@@ -41,11 +54,21 @@ Home Assistant vient les lire toutes les 10 minutes et pilote thermostats et bal
 
 | Mode | Quand | Consigne par défaut |
 |---|---|---|
-| Confort | pendant le séjour, et **4 h avant l'arrivée** (préchauffage) | 20 °C |
-| Ménage | **3 h après le départ** | 17 °C |
-| Éco | logement vide mais arrivée dans moins de **36 h** | 17 °C |
-| Inoccupé | logement vide plus longtemps | 12 °C |
+| Confort | pendant le séjour, et **avant l'arrivée** (préchauffage, selon le type de chauffage) | 20 °C |
+| Ménage | quelques heures après le départ (sauf plancher chauffant) | 17 °C |
+| Éco | logement vide mais arrivée proche | 17 °C |
+| Inoccupé | logement vide plus longtemps | 12 à 15 °C |
 | Arrêt | chauffage désactivé pour ce logement (été) | — |
+
+Chaque logement a un **type de chauffage** avec des valeurs conseillées (bouton « Appliquer les valeurs conseillées ») :
+
+| Type | Préchauffage | Inoccupé | Reste en éco si arrivée dans moins de | Baisse pendant le ménage |
+|---|---|---|---|---|
+| Plancher chauffant (forte inertie) | 12 h | 15 °C | 72 h | non |
+| Radiateurs électriques | 2 h | 12 °C | 24 h | 3 h |
+| Pompe à chaleur | 4 h | 14 °C | 36 h | 2 h |
+
+À l'installation, Tilh 1 est réglé en plancher chauffant et Tilh 2 en radiateurs : inversez-les si besoin.
 
 **Eau chaude** : le ballon est relancé **8 h avant l'arrivée** (quel que soit le tarif), reste en service pendant le séjour
 (uniquement en heures creuses si vous donnez un capteur d'heures creuses), et **s'arrête au départ**.
@@ -55,9 +78,9 @@ Tous ces réglages sont modifiables par logement (Réglages → Chauffage & eau 
 
 ## Installation (≈ 10 minutes)
 
-1. Aller sur <https://script.google.com> → **Nouveau projet**. Le renommer « Mes Locations ».
+1. Avec le compte Google **qui reçoit les emails Airbnb**, aller sur <https://script.google.com> → **Nouveau projet**. Le renommer « Mes Locations ».
 2. Créer les fichiers et coller le contenu de ce dossier :
-   - `Code.gs` (remplace le contenu par défaut), puis **+ → Script** pour `Data`, `Auth`, `Calendrier`, `Finances`, `Domotique`
+   - `Code.gs` (remplace le contenu par défaut), puis **+ → Script** pour `Data`, `Auth`, `Calendrier`, `Finances`, `Domotique`, `Emails`
    - **+ → HTML** pour `Index` (coller `Index.html`)
    - ⚙️ Paramètres du projet → cocher « Afficher le fichier manifeste appsscript.json », puis coller `appsscript.json`
 3. Dans la liste des fonctions en haut, choisir **`installer`** → ▶ **Exécuter** → accepter les autorisations Google.
@@ -84,12 +107,16 @@ Tous ces réglages sont modifiables par logement (Réglages → Chauffage & eau 
    homeassistant:
      packages: !include_dir_named packages
    ```
-   → crée les capteurs `sensor.location_thiel_1`, `sensor.location_thiel_2`, `sensor.location_soustons`
+   → crée les capteurs `sensor.location_tilh_1`, `sensor.location_tilh_2`, `sensor.location_soustons`
    (état = mode, attributs = consigne, eau chaude, prochaine arrivée, programme…) et les capteurs d'occupation.
 4. Copier `home-assistant/blueprints/automation/mes_locations/chauffage_ecs.yaml` dans `config/blueprints/automation/mes_locations/`,
    redémarrer Home Assistant.
 5. Paramètres → Automatisations → Modèles → **« Mes Locations — chauffage et eau chaude »** → créer **une automatisation par logement** :
-   capteur du logement, thermostat(s), interrupteur du ballon, et éventuellement le capteur d'heures creuses.
+   capteur du logement, puis les entités qui figurent sur vos tableaux de bord :
+   - **Tilh « Plancher chauffant »** → le thermostat (entité climate) du plancher ;
+   - **Tilh « Radiateur »** → les radiateurs (climate) ou les modules **fil pilote** (entités select ; vérifiez le nom exact des options Confort / Éco / Hors-gel / Arrêt de vos modules) ;
+   - **Soustons** → les entités de son tableau de bord ;
+   - l'interrupteur du ballon, et éventuellement le capteur d'heures creuses.
 
 Bon à savoir :
 - La consigne n'est envoyée **qu'au moment où elle change** : les voyageurs peuvent régler le thermostat pendant leur séjour.
