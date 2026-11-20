@@ -13,9 +13,11 @@
 #  - Logement vide : préchauffage avant l'arrivée → votre température CONFORT ;
 #    arrivée proche ou ménage → votre température ÉCO ;
 #    vide pour longtemps → température « inoccupé » réglée dans l'application.
-#  - Eau chaude : relance avant chaque arrivée (60 °C si le dernier passage à 60 °C
-#    date de plus de 7 jours), aucune charge quand personne n'est attendu,
-#    résistance d'appoint et cycle anti-légionelle sautés pendant l'absence.
+#  - Eau chaude : relance par la PAC à 48 °C (son maximum) avant chaque arrivée ;
+#    si le dernier passage à 60 °C date de plus de 7 jours, la résistance du ballon
+#    termine à 60 °C (anti-légionelle) avant l'arrivée des voyageurs.
+#    Aucune charge quand personne n'est attendu ; résistance du matin et cycle
+#    anti-légionelle du samedi sautés pendant l'absence.
 # Nécessite les capteurs du fichier mes_locations.yaml :
 #   sensor.location_refuge_chauffage, sensor.location_chalet_chauffage,
 #   sensor.location_tilh_eau_chaude
@@ -285,7 +287,7 @@ automation programmation_pac:
       - condition: state
         entity_id: input_boolean.resistance_ballon_auto
         state: "on"
-      # Mes Locations : inutile si personne n'est attendu (la relance avant l'arrivée monte à 60 °C)
+      # Mes Locations : inutile si personne n'est attendu (fait avant la prochaine arrivée si besoin)
       - condition: template
         value_template: "{{ not is_state('sensor.location_tilh_eau_chaude', 'arret') }}"
       - condition: template
@@ -309,6 +311,49 @@ automation programmation_pac:
              or states('sensor.shellyplus1pm_78ee4cc976a8_temperature_2') | float >= 60 }}
         timeout:
           minutes: "{{ duree }}"
+        continue_on_timeout: true
+      - action: switch.turn_off
+        target:
+          entity_id: switch.resistance_chauffe_eau_switch
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.resistance_ballon_en_cours
+
+  # Mes Locations : anti-légionelle avant une arrivée, par la résistance (la PAC plafonne à 48 °C).
+  # Au début de la relance (8 h avant l'arrivée), si le dernier passage à 60 °C date de plus
+  # de 7 jours : résistance allumée jusqu'à 60 °C en haut du ballon (5 h maximum).
+  - id: mes_locations_legionelle_avant_arrivee
+    alias: "Ballon – anti-légionelle avant l'arrivée de voyageurs"
+    mode: single
+    triggers:
+      - trigger: state
+        entity_id: sensor.location_tilh_eau_chaude
+        to: relance
+    conditions:
+      - condition: state
+        entity_id: input_boolean.resistance_ballon_auto
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.resistance_ballon_en_cours
+        state: "off"
+      - condition: template
+        value_template: "{{ states('sensor.shellyplus1pm_78ee4cc976a8_temperature_2') | is_number }}"
+      - condition: template
+        value_template: >-
+          {{ (now().timestamp()
+              - (states('input_datetime.eau_chaude_derniere_legionelle') | as_timestamp(0))) >= 7 * 86400 }}
+    actions:
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.resistance_ballon_en_cours
+      - action: switch.turn_on
+        target:
+          entity_id: switch.resistance_chauffe_eau_switch
+      - wait_template: >-
+          {{ not (states('sensor.shellyplus1pm_78ee4cc976a8_temperature_2') | is_number)
+             or states('sensor.shellyplus1pm_78ee4cc976a8_temperature_2') | float >= 60 }}
+        timeout:
+          minutes: 300
         continue_on_timeout: true
       - action: switch.turn_off
         target:
@@ -420,9 +465,9 @@ automation programmation_pac:
             {% if is_state('input_boolean.eau_chaude_relance', 'on') %}
               {% set c = states('input_number.eau_chaude_nuit_couvert') | float %}
             {% elif location == 'relance' %}
-              {# Mes Locations : voyageurs attendus dans les prochaines heures → charge prioritaire,
-                 à 60 °C si le dernier passage à 60 °C date de plus de 7 jours #}
-              {% set c = 60 if not legionelle_ok else states('input_number.eau_chaude_nuit_couvert') | float %}
+              {# Mes Locations : voyageurs attendus dans les prochaines heures → charge prioritaire
+                 au maximum de la PAC (48 °C) ; le passage à 60 °C est fait par la résistance #}
+              {% set c = 48 %}
             {% elif location == 'arret' %}
               {# Mes Locations : personne dans les logements ni attendu → pas de charge #}
               {% set charge = false %}

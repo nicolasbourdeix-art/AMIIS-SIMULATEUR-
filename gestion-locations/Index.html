@@ -897,7 +897,7 @@ function editerDomo(c){
     <div class="f full" style="margin-top:6px"><label style="color:var(--acc);text-transform:uppercase;font-size:11px;letter-spacing:.08em">💧 Eau chaude</label></div>
     <div class="f"><label>Groupe eau chaude</label><input type="text" id="ed-ge" value="${esc(c.groupe_ecs)}" placeholder="ex. TILH"><span class="hint">Même groupe = même ballon (il chauffe dès qu'un logement en a besoin)</span></div>
     ${num('ed-eh','Relance avant arrivée (h)',c.ecs_avance_h,'Le ballon chauffe même en heures pleines')}
-    ${num('ed-er','Température de relance (°C)',c.ecs_temp_relance,'≥ 55 °C : sécurité sanitaire après un arrêt')}
+    ${num('ed-er','Température de relance (°C)',c.ecs_temp_relance,'Pompe à chaleur de Tilh : 48 °C maximum')}
     ${num('ed-em','Pendant le séjour (°C)',c.ecs_temp_marche,'')}
     ${num('ed-ea','Logement vide (°C)',c.ecs_temp_arret,'Ou le mode arrêt du chauffe-eau')}
     </div>

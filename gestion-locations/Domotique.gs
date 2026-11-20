@@ -12,8 +12,8 @@
  * Eau chaude (par « groupe eau chaude ») : un même ballon peut servir plusieurs logements
  * (à Tilh, la pompe à chaleur produit l'eau chaude des deux maisons). Le ballon est en marche
  * dès qu'AU MOINS UN logement du groupe en a besoin :
- *   relance → les heures avant une arrivée : montée à la température de relance (60 °C par défaut,
- *             ce qui assure aussi la sécurité sanitaire après une période d'arrêt), même en heures pleines
+ *   relance → les heures avant une arrivée : montée à la température de relance, même en heures pleines
+ *             (48 °C pour la PAC de Tilh, son maximum ; le passage à 60 °C est fait par la résistance)
  *   marche  → pendant un séjour
  *   arret   → plus personne : température d'arrêt (ou mode arrêt du chauffe-eau)
  */
@@ -295,7 +295,7 @@ function actDomotiqueSave_(u, p) {
     else o[k] = Number(String(v).replace(',', '.')) || 0;
   });
   if (o.temp_inoccupe < 5) throw new Error('Gardez au moins 5 °C en inoccupé (risque de gel).');
-  if (o.ecs_temp_relance < 55) throw new Error('La relance d\'eau chaude doit atteindre au moins 55 °C (sécurité sanitaire).');
+  if (o.ecs_temp_relance < 40 || o.ecs_temp_relance > 65) throw new Error('Température de relance entre 40 et 65 °C.');
   sauver_('Domotique', o);
   journal_(u.identifiant, 'domotique', cfg.bien_id);
   return true;

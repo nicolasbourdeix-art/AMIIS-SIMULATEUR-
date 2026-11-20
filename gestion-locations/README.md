@@ -93,7 +93,7 @@ le ballon chauffe dès qu'**au moins un** d'entre eux en a besoin, et ne s'arrê
 
 | État | Quand | Consigne par défaut |
 |---|---|---|
-| Relance | 8 h avant une arrivée, même en heures pleines | 60 °C (assure aussi la sécurité sanitaire après un arrêt) |
+| Relance | 8 h avant une arrivée, même en heures pleines | 48 °C à Tilh (maximum de la PAC) ; 60 °C par la résistance si le dernier passage à 60 °C date de plus de 7 jours |
 | Marche | pendant un séjour | 52 °C |
 | Arrêt | aucun voyageur ni arrivée proche | 40 °C, ou le mode arrêt / vacances du chauffe-eau |
 
@@ -134,9 +134,10 @@ le ballon chauffe dès qu'**au moins un** d'entre eux en a besoin, et ne s'arrê
    - **logement vide** : préchauffage avant l'arrivée → votre température **confort** ; arrivée proche ou ménage → votre **éco** ;
      vide pour longtemps → la température « inoccupé » réglée dans l'application (15 °C minimum pour le chalet, limite de son thermostat) ;
      une dérogation manuelle est annulée quand l'état de la location change ;
-   - **eau chaude** : relance prioritaire 8 h avant chaque arrivée (à 60 °C si le dernier passage à 60 °C date de plus de 7 jours,
-     sinon à votre température « nuit couvert ») ; **aucune charge** quand personne n'est là ni attendu ; résistance d'appoint du matin
-     et cycle anti-légionelle du samedi sautés pendant l'absence. Le reste (solaire, heures creuses, priorité au chauffage) est inchangé.
+   - **eau chaude** : relance prioritaire par la PAC à **48 °C** (son maximum) 8 h avant chaque arrivée ; si le dernier passage
+     à 60 °C date de plus de 7 jours, la **résistance** termine à 60 °C avant l'arrivée (anti-légionelle). **Aucune charge** quand
+     personne n'est là ni attendu ; résistance du matin et cycle anti-légionelle du samedi sautés pendant l'absence.
+     Le reste (solaire, heures creuses, priorité au chauffage) est inchangé.
    - L'interrupteur « Programmation active » garde son rôle : s'il est coupé, rien ne bouge.
 5. **Soustons** — copier `home-assistant/blueprints/automation/mes_locations/chauffage.yaml` dans
    `config/blueprints/automation/mes_locations/`, puis coller `home-assistant/automations_mes_locations.yaml` à la fin de

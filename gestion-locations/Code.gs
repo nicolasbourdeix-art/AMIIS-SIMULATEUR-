@@ -90,6 +90,7 @@ function installer() {
       Object.keys(pr).forEach(function (k) { if (k !== 'label') o[k] = pr[k]; });
       o.type_chauffage = x[1];
       o.groupe_ecs = x[2];
+      if (x[2] === 'TILH') { o.ecs_temp_relance = 48; o.ecs_temp_marche = 48; } // la PAC plafonne à 48 °C
       sauver_('Domotique', o);
     });
   }
