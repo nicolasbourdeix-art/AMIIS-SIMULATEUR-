@@ -43,6 +43,17 @@ Chaque personne a son identifiant + mot de passe (pas besoin de compte Google) :
 
 Laetitia reçoit chaque soir à 18h le programme du lendemain par email (si son email est renseigné).
 
+### Synchronisation dans les deux sens avec Airbnb
+- **Airbnb → appli** : les réservations arrivent toutes les heures (lien « Exporter le calendrier » d'Airbnb, dans Réglages → Biens).
+- **Appli → Airbnb** : les **dates bloquées** dans l'appli (onglet Réservations → « Bloquer des dates » : travaux, séjour perso…)
+  et les **réservations hors Airbnb** (location en direct, Booking…) sont envoyées dans un Google Agenda par logement,
+  « Mes Locations — blocages … », qu'Airbnb importe. Airbnb relit cet agenda de lui-même, toutes les quelques heures.
+
+Mise en place (une fois par logement) :
+1. Réglages → Synchronisation vers Airbnb → **Créer / mettre à jour les agendas**.
+2. Google Agenda → Paramètres → l'agenda « Mes Locations — blocages … » → copier l'**adresse secrète au format iCal**.
+3. Airbnb → Annonces → le logement → Disponibilités → Synchronisation des calendriers → **Importer un calendrier** → coller l'adresse.
+
 ### Montants récupérés automatiquement (emails Airbnb)
 Le calendrier Airbnb ne contient pas les montants, mais chaque email **« Réservation confirmée »** reçu par l'hôte indique
 le code de réservation et la ligne **« VOUS GAGNEZ … € »** (montant net versé, ménage compris, frais Airbnb déduits).
@@ -103,7 +114,7 @@ le ballon chauffe dès qu'**au moins un** d'entre eux en a besoin, et ne s'arrê
 
 1. Avec le compte Google **qui reçoit les emails Airbnb**, aller sur <https://script.google.com> → **Nouveau projet**. Le renommer « Mes Locations ».
 2. Créer les fichiers et coller le contenu de ce dossier :
-   - `Code.gs` (remplace le contenu par défaut), puis **+ → Script** pour `Data`, `Auth`, `Calendrier`, `Finances`, `Domotique`, `Emails`
+   - `Code.gs` (remplace le contenu par défaut), puis **+ → Script** pour `Data`, `Auth`, `Calendrier`, `Finances`, `Domotique`, `Emails`, `Export`
    - **+ → HTML** pour `Index` (coller `Index.html`)
    - ⚙️ Paramètres du projet → cocher « Afficher le fichier manifeste appsscript.json », puis coller `appsscript.json`
 3. Dans la liste des fonctions en haut, choisir **`installer`** → ▶ **Exécuter** → accepter les autorisations Google.

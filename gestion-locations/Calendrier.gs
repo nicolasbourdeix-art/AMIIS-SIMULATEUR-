@@ -298,6 +298,7 @@ function fr_(d) {
 function syncAuto() {
   synchroniser_();
   try { importerMontantsEmails_(); } catch (e) { console.error('Import emails : ' + e.message); }
+  synchroniserExportSilencieux_();
   alerterConflits_();
 }
 

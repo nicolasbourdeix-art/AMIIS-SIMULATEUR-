@@ -149,6 +149,10 @@ var ACTIONS = {
                           var r = synchroniser_();
                           try { r.emails = importerMontantsEmails_(); } catch (e) { r.emails = { erreur: e.message }; }
                           r.alertes = alerterConflits_(); journal_(u.identifiant, 'synchro', JSON.stringify(r.biens)); return r; } },
+  blocages:           { roles: GESTION, fn: actBlocages_ },
+  blocage_save:       { roles: GESTION, fn: actBlocageSave_ },
+  export_infos:       { roles: ['admin'], fn: actExportInfos_ },
+  export_creer:       { roles: ['admin'], fn: actExportCreer_ },
   emails_import:      { roles: GESTION, fn: function (u) { var r = importerMontantsEmails_(true); journal_(u.identifiant, 'import emails', JSON.stringify(r)); return r; } },
   reglages:           { roles: ['admin'], fn: actReglages_ },
   bien_save:          { roles: ['admin'], fn: actBienSave_ },
@@ -351,6 +355,7 @@ function actReservationSave_(u, p) {
     r.maj_le = maintenant_();
     sauver_('Reservations', r);
     journal_(u.identifiant, p.id ? 'réservation modifiée' : 'réservation créée', r.id);
+    if (r.source !== 'airbnb') synchroniserExportSilencieux_();
     return masquer_(u, r);
   } finally { lock.releaseLock(); }
 }
@@ -360,8 +365,10 @@ function actReservationSuppr_(u, p) {
   if (!r) throw new Error('Réservation introuvable.');
   verifierBien_(u, r.bien_id);
   if (r.source !== 'manuel') throw new Error('Une réservation Airbnb ne se supprime pas : elle disparaît toute seule si elle est annulée sur Airbnb.');
+  if (r.type === 'blocage') { /* dates bloquées à la main : suppression autorisée */ }
   supprimerLigne_('Reservations', r._row);
   journal_(u.identifiant, 'réservation supprimée', r.id);
+  synchroniserExportSilencieux_();
   return true;
 }
 

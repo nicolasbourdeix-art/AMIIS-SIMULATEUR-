@@ -293,6 +293,12 @@ tfoot td{font-weight:800;border-top:2px solid var(--bd);border-bottom:none}
       <p class="small muted" style="margin-bottom:8px">Les réservations Airbnb arrivent toutes seules (toutes les heures). Les montants sont lus automatiquement dans les emails « Réservation confirmée » d'Airbnb (📧) ; vous pouvez aussi cliquer sur une ligne pour saisir le <b>montant net versé</b> (✍️).</p>
       <div class="tbl-wrap"><table id="res-tbl"></table></div>
     </div>
+    <div class="card" data-roles="admin,gestionnaire">
+      <div class="card-title">🚫 Dates bloquées (envoyées à Airbnb)
+        <button class="btn sm" id="bl-new">+ Bloquer des dates</button></div>
+      <p class="small muted" style="margin-bottom:8px">Travaux, séjour perso, logement indisponible… Ces dates, ainsi que les réservations hors Airbnb, sont bloquées automatiquement dans Airbnb (délai de quelques heures).</p>
+      <div class="tbl-wrap"><table id="bl-tbl"></table></div>
+    </div>
   </section>
 
   <!-- REVENUS -->
@@ -381,6 +387,17 @@ tfoot td{font-weight:800;border-top:2px solid var(--bd);border-bottom:none}
         <div class="f full"><label>Calendrier des séjours (facultatif, intégration « Calendrier distant »)</label><input type="text" id="domo-ics" readonly onclick="this.select()"></div>
       </div>
       <div class="actions"><button class="btn ghost sm" id="domo-cle">Changer la clé secrète</button></div>
+    </div>
+    <div class="card">
+      <div class="card-title">↔️ Synchronisation vers Airbnb</div>
+      <p class="small muted" style="margin-bottom:10px">Un agenda Google par logement contient les dates bloquées et les réservations hors Airbnb. Airbnb l'importe et bloque ces dates.</p>
+      <div id="exp-infos"></div>
+      <div class="actions"><button class="btn sm" id="exp-creer">Créer / mettre à jour les agendas</button></div>
+      <ol class="small" style="margin:12px 0 0 18px;line-height:1.7">
+        <li>Ouvrez <a href="https://calendar.google.com/calendar/r/settings" target="_blank" rel="noopener">Google Agenda → Paramètres</a> avec ce compte Google, cliquez sur l'agenda « Mes Locations — blocages … » du logement.</li>
+        <li>Tout en bas, copiez l'<b>« Adresse secrète au format iCal »</b>.</li>
+        <li>Airbnb → Annonces → ce logement → Disponibilités → Synchronisation des calendriers → <b>Importer un calendrier</b> → collez l'adresse, nommez-le « Mes Locations ».</li>
+      </ol>
     </div>
     <div class="card">
       <div class="card-title">Liens utiles</div>
@@ -666,10 +683,34 @@ function majMenage(id, p, discret){
 /* ═══════════════════ Réservations ═══════════════════ */
 $('res-annee').onchange = $('res-bien').onchange = () => chargerResas();
 $('res-new').onclick = () => editerResa(null);
+function chargerBlocages(){
+  if (!peut('admin','gestionnaire')) return;
+  call('blocages').then(l => {
+    $('bl-tbl').innerHTML = l.length ? `<thead><tr><th>Bien</th><th>Du</th><th>Au (dernière nuit)</th><th class="hide-m">Motif</th><th></th></tr></thead><tbody>${l.map(b=>`<tr>
+      <td>${pastille(b.bien_id)}</td><td>${esc(fd(b.arrivee))}</td><td>${esc(fd(addD(b.depart,-1)))}</td><td class="hide-m small">${esc(b.notes||'')}</td>
+      <td><button class="btn ko sm" data-bl="${esc(b.id)}">Débloquer</button></td></tr>`).join('')}</tbody>` : '<tbody><tr><td class="empty">Aucune date bloquée.</td></tr></tbody>';
+    $('bl-tbl').querySelectorAll('[data-bl]').forEach(btn => btn.onclick = () => {
+      if (confirm("Débloquer ces dates (dans l'appli et dans Airbnb) ?")) call('reservation_suppr',{id:btn.dataset.bl}).then(()=>{ toast('Dates débloquées','ok'); chargerResas(); }).catch(erreur);
+    });
+  }).catch(erreur);
+}
+$('bl-new').onclick = () => {
+  modal('Bloquer des dates', `<div class="form">
+    <div class="f full"><label>Bien</label><select id="bl-bien">${S.biens.map(b=>`<option value="${esc(b.id)}">${esc(b.nom)}</option>`).join('')}</select></div>
+    <div class="f"><label>Première nuit bloquée</label><input type="date" id="bl-du"></div>
+    <div class="f"><label>Dernière nuit bloquée</label><input type="date" id="bl-au"></div>
+    <div class="f full"><label>Motif (pour vous)</label><input type="text" id="bl-motif" placeholder="ex. travaux, séjour famille…"></div></div>
+    <p class="small muted" style="margin-top:8px">Exemple : du 10 au 12 bloque les nuits du 10, 11 et 12 ; une arrivée redevient possible le 13.</p>
+    <div class="actions"><button class="btn" id="bl-save">Bloquer</button><button class="btn ghost" data-close>Annuler</button></div>`);
+  $('bl-du').onchange = () => { if (!$('bl-au').value || $('bl-au').value < $('bl-du').value) $('bl-au').value = $('bl-du').value; };
+  $('bl-save').onclick = () => call('blocage_save', {bien_id:$('bl-bien').value, du:$('bl-du').value, au:$('bl-au').value, motif:$('bl-motif').value})
+    .then(r => { fermer(); toast(r.avertissement || 'Dates bloquées ✓', r.avertissement?'ko':'ok'); chargerResas(); }).catch(erreur);
+};
 $('res-mail').onclick = () => { const b=$('res-mail'); b.disabled=true;
   call('emails_import').then(r => { toast(`${r.lus} nouvel(s) email(s) Airbnb lu(s) · ${r.appliques} réservation(s) complétée(s)`, 'ok'); chargerResas(); })
     .catch(erreur).finally(()=>b.disabled=false); };
 function chargerResas(){
+  chargerBlocages();
   call('reservations', {annee:$('res-annee').value}).then(liste => {
     const fb=$('res-bien').value;
     const l = liste.filter(r=>!fb||r.bien_id===fb).sort((a,b)=>a.arrivee<b.arrivee?1:-1);
@@ -835,8 +876,14 @@ const LIB_PARAMS = { regle_1_logement_par_jour:'Un seul logement préparé par j
   repartition_revenus:'Comptage des revenus', rappel_menage:'Rappel ménage la veille (18h)', import_emails:'Montants depuis les emails Airbnb', emails_transfert:'Emails transférés acceptés de' };
 const CHOIX_PARAMS = { regle_1_logement_par_jour:[['oui','Oui'],['non','Non']], regle_2_departs:[['oui','Oui'],['non','Non']], regle_2_arrivees:[['oui','Oui'],['non','Non']], ignorer_blocages:[['oui','Oui'],['non','Non']],
   rappel_menage:[['oui','Oui'],['non','Non']], import_emails:[['oui','Oui'],['non','Non']], repartition_revenus:[['arrivee','Au mois d\'arrivée'],['nuits','Au prorata des nuits']] };
+function chargerExport(){
+  call('export_infos').then(l => { $('exp-infos').innerHTML = `<table>${l.map(x=>`<tr><td>${pastille(x.bien_id)}</td><td class="small">${x.cree?'📅 '+esc(x.agenda):'<span class="badge acc">agenda pas encore créé</span>'}</td></tr>`).join('')}</table>`; }).catch(erreur);
+}
+$('exp-creer').onclick = () => { const b=$('exp-creer'); b.disabled=true;
+  call('export_creer').then(() => { toast('Agendas à jour ✓','ok'); chargerExport(); }).catch(erreur).finally(()=>b.disabled=false); };
 function chargerReglages(){
   chargerDomotique();
+  chargerExport();
   call('reglages').then(d => {
     S.reg=d;
     $('reg-biens').innerHTML = `<thead><tr><th>Bien</th><th class="hide-m">Groupe ménage</th><th>Calendrier Airbnb</th><th>Partage des revenus</th><th></th></tr></thead><tbody>${d.biens.map(b=>`<tr class="click" data-b="${esc(b.id)}">
